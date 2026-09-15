@@ -11,14 +11,14 @@
     "splash": {
       "image": "./assets/images/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#047857"
+      "backgroundColor": "#0B192C"
     },
     "android": {
       "package": "in.khanexpert.engineer",
       "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#047857"
+        "backgroundColor": "#0B192C"
       },
       "edgeToEdgeEnabled": true
     },
@@ -28,7 +28,20 @@
     },
     "plugins": [
       "expo-router",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Khan Expert needs access to your photos so you can attach existing pictures to a job.",
+          "cameraPermission": "Khan Expert needs your camera to photograph completed work on a job."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Khan Expert needs your location to record check-in and check-out at the job site."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

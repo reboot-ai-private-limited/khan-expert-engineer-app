@@ -6,6 +6,10 @@ import {
   type AuthErrorCode,
   type LoginRequest,
   type LoginResponse,
+  type RegisterRequest,
+  type RegisterResponse,
+  type RegistrationStatusResponse,
+  type ResubmitRequest,
 } from '@/types/auth';
 
 /**
@@ -117,6 +121,69 @@ export const engineerAuthApi = {
 
       // A 500 is the server's problem, not a bad token. Keep the session.
       return true;
+    }
+  },
+
+  /**
+   * POST /api/engineer-auth/register
+   *
+   * Public — no token needed. On success the server has already signed a
+   * token for the new (pending) engineer, so the app logs them straight in
+   * to the status screen rather than sending them back to a login form for
+   * credentials they just typed.
+   */
+  async register(payload: RegisterRequest): Promise<RegisterResponse> {
+    if (!env.apiUrl) {
+      throw new AuthError('config', 'No server address is configured for this app.');
+    }
+
+    try {
+      const { data } = await api.post<RegisterResponse>('/engineer-auth/register', payload);
+
+      if (!data?.success || !data.token || !data.engineer) {
+        throw new AuthError('server', 'The server returned an unexpected response.');
+      }
+
+      return data;
+    } catch (error) {
+      if (error instanceof AuthError) throw error;
+
+      if (isNetworkError(error)) {
+        throw new AuthError('network', friendlyMessage('network'), true);
+      }
+
+      const status = axios.isAxiosError(error) ? error.response?.status : undefined;
+      const message = serverMessage(error);
+      // Register errors are mostly validation prose the server already
+      // wrote for a human ("That phone number is already registered.") —
+      // shown as-is rather than forced through the login-specific copy.
+      const code: AuthErrorCode = status && status >= 500 ? 'server' : 'missing_credentials';
+
+      throw new AuthError(code, message ?? friendlyMessage(code), code === 'server');
+    }
+  },
+
+  /** GET /api/engineer-auth/registration-status */
+  async getRegistrationStatus(): Promise<RegistrationStatusResponse> {
+    const { data } = await api.get<RegistrationStatusResponse>('/engineer-auth/registration-status');
+    if (!data?.success) {
+      throw new AuthError('server', 'Could not load your application status.');
+    }
+    return data;
+  },
+
+  /** PUT /api/engineer-auth/registration — only works while changes_requested. */
+  async resubmitRegistration(payload: ResubmitRequest): Promise<void> {
+    try {
+      const { data } = await api.put<{ success: boolean; message: string }>(
+        '/engineer-auth/registration',
+        payload
+      );
+      if (!data?.success) throw new AuthError('server', data?.message || 'Could not resubmit.');
+    } catch (error) {
+      if (error instanceof AuthError) throw error;
+      if (isNetworkError(error)) throw new AuthError('network', friendlyMessage('network'), true);
+      throw new AuthError('server', serverMessage(error) ?? 'Could not resubmit.');
     }
   },
 };

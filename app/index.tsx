@@ -2,6 +2,7 @@ import React from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { Redirect } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
+import { isAccountActive } from '@/utils/accountStatus';
 import { colors, spacing, typography } from '@/theme';
 
 /**
@@ -9,7 +10,7 @@ import { colors, spacing, typography } from '@/theme';
  * then routes once. Nothing else lives here.
  */
 export default function Index() {
-  const { status } = useAuth();
+  const { status, engineer } = useAuth();
 
   if (status === 'restoring') {
     return (
@@ -20,10 +21,14 @@ export default function Index() {
     );
   }
 
-  return status === 'authenticated' ? (
+  if (status !== 'authenticated') {
+    return <Redirect href="/(auth)/welcome" />;
+  }
+
+  return isAccountActive(engineer) ? (
     <Redirect href="/(tabs)/calls" />
   ) : (
-    <Redirect href="/(auth)/login" />
+    <Redirect href="/(auth)/status" />
   );
 }
 

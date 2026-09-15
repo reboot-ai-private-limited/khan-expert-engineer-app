@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 import { Button } from '@/components/common/Button';
 import { TextField } from '@/components/common/TextField';
 import { Notice } from '@/components/feedback/Notice';
@@ -204,6 +205,13 @@ export default function LoginScreen() {
                 onPress={callSupport}
               />
             ) : null}
+
+            <Text
+              style={[typography.small, styles.registerLink]}
+              onPress={() => router.push('/(auth)/register')}
+            >
+              New engineer? Register here
+            </Text>
           </View>
         </Pressable>
       </ScrollView>
@@ -262,5 +270,10 @@ const styles = StyleSheet.create({
   footerText: {
     color: colors.textMuted,
     textAlign: 'center',
+  },
+  registerLink: {
+    color: colors.brand,
+    textAlign: 'center',
+    fontWeight: '600',
   },
 });

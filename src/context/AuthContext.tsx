@@ -10,7 +10,13 @@ import React, {
 import { engineerAuthApi } from '@/api/endpoints/engineerAuth';
 import { setUnauthorizedHandler } from '@/api/client';
 import { sessionStorage } from '@/services/storage/secureStore';
-import { AuthError, type AuthStatus, type EngineerProfile } from '@/types/auth';
+import {
+  AuthError,
+  type AuthStatus,
+  type EngineerProfile,
+  type RegisterRequest,
+  type ResubmitRequest,
+} from '@/types/auth';
 
 interface AuthContextValue {
   status: AuthStatus;
@@ -18,6 +24,12 @@ interface AuthContextValue {
   /** Set when the session ended on its own, so the login screen can explain why. */
   sessionEndedReason: string | null;
   login: (loginId: string, password: string) => Promise<void>;
+  /** Submits a new application and signs the engineer straight in, pending review. */
+  register: (payload: RegisterRequest) => Promise<void>;
+  /** Re-reads accountStatus from the server — used by the status screen to notice a decision. */
+  refreshRegistrationStatus: () => Promise<void>;
+  /** Only works while accountStatus is 'changes_requested'. */
+  resubmitRegistration: (payload: ResubmitRequest) => Promise<void>;
   logout: () => Promise<void>;
   clearSessionEndedReason: () => void;
   lastLoginId: string | null;
@@ -132,6 +144,50 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setStatus('authenticated');
   }, []);
 
+  const register = useCallback(async (payload: RegisterRequest) => {
+    const response = await engineerAuthApi.register(payload);
+
+    const stored = await sessionStorage.setToken(response.token);
+    if (!stored) {
+      throw new AuthError(
+        'unknown',
+        'Could not save your sign-in on this device. Restart the app and try again.'
+      );
+    }
+    await sessionStorage.setProfile(response.engineer);
+    await sessionStorage.setLastLoginId(response.engineer.phone);
+
+    if (!mounted.current) return;
+    setLastLoginId(response.engineer.phone);
+    setSessionEndedReason(null);
+    setEngineer(response.engineer);
+    setStatus('authenticated');
+  }, []);
+
+  const refreshRegistrationStatus = useCallback(async () => {
+    const result = await engineerAuthApi.getRegistrationStatus();
+    if (!mounted.current) return;
+
+    setEngineer((prev) => {
+      if (!prev) return prev;
+      const next: EngineerProfile = {
+        ...prev,
+        accountStatus: result.accountStatus,
+        reviewNote: result.reviewNote,
+      };
+      void sessionStorage.setProfile(next);
+      return next;
+    });
+  }, []);
+
+  const resubmitRegistration = useCallback(
+    async (payload: ResubmitRequest) => {
+      await engineerAuthApi.resubmitRegistration(payload);
+      await refreshRegistrationStatus();
+    },
+    [refreshRegistrationStatus]
+  );
+
   /**
    * There is no engineer logout endpoint on the backend, and the token
    * cannot be revoked server-side — clearing it locally is the whole of
@@ -149,11 +205,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       engineer,
       sessionEndedReason,
       login,
+      register,
+      refreshRegistrationStatus,
+      resubmitRegistration,
       logout,
       clearSessionEndedReason,
       lastLoginId,
     }),
-    [status, engineer, sessionEndedReason, login, logout, clearSessionEndedReason, lastLoginId]
+    [
+      status,
+      engineer,
+      sessionEndedReason,
+      login,
+      register,
+      refreshRegistrationStatus,
+      resubmitRegistration,
+      logout,
+      clearSessionEndedReason,
+      lastLoginId,
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -1,49 +1,51 @@
 /**
- * Palette anchored to the existing Field Engineer Portal, which uses
- * emerald as its accent. Neutrals carry a slight green bias so they read
- * as chosen rather than inherited.
+ * Palette matched to the admin web panel's blue theme (see
+ * frontend/src/index.css — --color-custom-blue / --color-sidebar-bg),
+ * so the engineer app and the office CRM read as one product. Neutrals
+ * carry a slight blue-slate bias so they read as chosen rather than
+ * inherited.
  *
  * Contrast is deliberately high: this app is used outdoors, in sunlight,
  * often one-handed.
  */
 export const colors = {
   // Brand
-  brand: '#047857',
-  brandDark: '#03543F',
-  brandLight: '#059669',
-  brandWash: '#E7F3EE',
+  brand: '#0072E8',
+  brandDark: '#0B192C',
+  brandLight: '#0A58CA',
+  brandWash: '#EFF6FF',
 
   // Ground
-  background: '#F4F7F4',
+  background: '#F1F5F9',
   surface: '#FFFFFF',
-  sunken: '#EBF0EC',
+  sunken: '#F8FAFC',
 
   // Ink
-  text: '#0F221B',
-  textSoft: '#2C4137',
-  textMuted: '#5B6E64',
-  textFaint: '#8A9A91',
+  text: '#0F172A',
+  textSoft: '#1E293B',
+  textMuted: '#64748B',
+  textFaint: '#94A3B8',
   textOnBrand: '#FFFFFF',
 
   // Lines
-  border: '#D7E0D9',
-  borderSoft: '#E5EBE6',
-  borderFocus: '#047857',
+  border: '#E2E8F0',
+  borderSoft: '#EEF2F6',
+  borderFocus: '#0072E8',
 
   // Semantic — separate from the brand accent
-  danger: '#B42318',
-  dangerWash: '#FBEAE8',
-  warning: '#B45309',
-  warningWash: '#FBF0E2',
-  success: '#047857',
-  successWash: '#E7F3EE',
-  info: '#1D4ED8',
-  infoWash: '#E8EEFC',
+  danger: '#EF4444',
+  dangerWash: '#FEF2F2',
+  warning: '#F59E0B',
+  warningWash: '#FFFBEB',
+  success: '#10B981',
+  successWash: '#ECFDF5',
+  info: '#0072E8',
+  infoWash: '#EFF6FF',
 
   // States
-  disabled: '#C4CFC8',
-  disabledText: '#8A9A91',
-  overlay: 'rgba(15, 34, 27, 0.45)',
+  disabled: '#CBD5E1',
+  disabledText: '#94A3B8',
+  overlay: 'rgba(11, 25, 44, 0.45)',
 } as const;
 
 export type ColorToken = keyof typeof colors;
