@@ -1,0 +1,930 @@
+<title>Khan Expert Field App</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+
+<style>
+  :root {
+    --ink:        #0F221B;
+    --ink-soft:   #2C4137;
+    --muted:      #5B6E64;
+    --faint:      #8A9A91;
+    --paper:      #F4F7F4;
+    --surface:    #FFFFFF;
+    --sunken:     #EBF0EC;
+    --line:       #D7E0D9;
+    --line-soft:  #E5EBE6;
+    --accent:     #047857;
+    --accent-ink: #03543F;
+    --accent-wash:#E7F3EE;
+    --caution:    #B45309;
+    --caution-wash:#FBF0E2;
+    --critical:   #B42318;
+    --critical-wash:#FBEAE8;
+    --shadow:     0 1px 2px rgba(15,34,27,.06), 0 8px 24px -16px rgba(15,34,27,.28);
+
+    --f-display: 'Archivo', 'Segoe UI', system-ui, sans-serif;
+    --f-body:    'Source Sans 3', 'Segoe UI', system-ui, sans-serif;
+    --f-mono:    'JetBrains Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ink:        #E4EDE7;
+      --ink-soft:   #C2D2C8;
+      --muted:      #93A69B;
+      --faint:      #6C8076;
+      --paper:      #0B1512;
+      --surface:    #131F1A;
+      --sunken:     #18261F;
+      --line:       #2A3A32;
+      --line-soft:  #223029;
+      --accent:     #34D399;
+      --accent-ink: #6EE7B7;
+      --accent-wash:#14302A;
+      --caution:    #E5A25A;
+      --caution-wash:#2E2317;
+      --critical:   #F0857B;
+      --critical-wash:#33191A;
+      --shadow:     0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ink:        #E4EDE7;
+    --ink-soft:   #C2D2C8;
+    --muted:      #93A69B;
+    --faint:      #6C8076;
+    --paper:      #0B1512;
+    --surface:    #131F1A;
+    --sunken:     #18261F;
+    --line:       #2A3A32;
+    --line-soft:  #223029;
+    --accent:     #34D399;
+    --accent-ink: #6EE7B7;
+    --accent-wash:#14302A;
+    --caution:    #E5A25A;
+    --caution-wash:#2E2317;
+    --critical:   #F0857B;
+    --critical-wash:#33191A;
+    --shadow:     0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--f-body);
+    font-size: 16px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 940px;
+    margin: 0 auto;
+    padding-inline: 20px;
+    padding-block: 0 96px;
+  }
+
+  /* ---------- masthead ---------- */
+
+  .masthead {
+    border-bottom: 2px solid var(--ink);
+    padding-block: 56px 22px;
+    margin-bottom: 44px;
+  }
+  .eyebrow {
+    font-family: var(--f-mono);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 14px;
+  }
+  h1 {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: clamp(30px, 6vw, 46px);
+    line-height: 1.08;
+    letter-spacing: -.022em;
+    text-wrap: balance;
+    margin: 0 0 14px;
+  }
+  .standfirst {
+    font-size: clamp(16px, 2.4vw, 18.5px);
+    color: var(--ink-soft);
+    max-width: 62ch;
+    margin: 0;
+  }
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 28px;
+    margin-top: 26px;
+    font-family: var(--f-mono);
+    font-size: 11.5px;
+    color: var(--muted);
+  }
+  .meta b {
+    color: var(--ink);
+    font-weight: 600;
+  }
+
+  /* ---------- sections ---------- */
+
+  section { margin-bottom: 56px; }
+
+  .sec-head {
+    display: grid;
+    grid-template-columns: 64px 1fr;
+    gap: 0 16px;
+    align-items: baseline;
+    border-top: 1px solid var(--line);
+    padding-top: 14px;
+    margin-bottom: 22px;
+  }
+  .sec-num {
+    font-family: var(--f-mono);
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--faint);
+    letter-spacing: .08em;
+  }
+  h2 {
+    font-family: var(--f-display);
+    font-weight: 600;
+    font-size: clamp(21px, 3.4vw, 26px);
+    letter-spacing: -.015em;
+    line-height: 1.2;
+    text-wrap: balance;
+    margin: 0;
+  }
+  .sec-body { padding-left: 0; }
+  @media (min-width: 720px) {
+    .sec-body { padding-left: 80px; }
+  }
+
+  h3 {
+    font-family: var(--f-display);
+    font-weight: 600;
+    font-size: 16.5px;
+    letter-spacing: -.005em;
+    margin: 32px 0 10px;
+  }
+  h3:first-child { margin-top: 0; }
+
+  p { margin: 0 0 14px; max-width: 72ch; }
+  p:last-child { margin-bottom: 0; }
+
+  ul, ol { margin: 0 0 16px; padding-left: 22px; max-width: 72ch; }
+  li { margin-bottom: 7px; }
+  li:last-child { margin-bottom: 0; }
+
+  code {
+    font-family: var(--f-mono);
+    font-size: .855em;
+    background: var(--sunken);
+    border: 1px solid var(--line-soft);
+    border-radius: 3px;
+    padding: .1em .36em;
+    word-break: break-word;
+  }
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, summary:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+
+  /* ---------- tables ---------- */
+
+  .scroll { overflow-x: auto; margin-bottom: 18px; }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 560px;
+    font-size: 14.2px;
+  }
+  th {
+    font-family: var(--f-mono);
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-align: left;
+    padding: 0 14px 8px 0;
+    border-bottom: 1.5px solid var(--line);
+    white-space: nowrap;
+  }
+  td {
+    padding: 11px 14px 11px 0;
+    border-bottom: 1px solid var(--line-soft);
+    vertical-align: top;
+  }
+  tr > *:last-child { padding-right: 0; }
+  td code { background: none; border: none; padding: 0; color: var(--ink-soft); }
+  .num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  /* ---------- pills ---------- */
+
+  .pill {
+    display: inline-block;
+    font-family: var(--f-mono);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    padding: 3px 7px;
+    border-radius: 3px;
+    white-space: nowrap;
+    border: 1px solid transparent;
+  }
+  .p-crit { background: var(--critical-wash); color: var(--critical); border-color: var(--critical); }
+  .p-warn { background: var(--caution-wash);  color: var(--caution);  border-color: var(--caution); }
+  .p-ok   { background: var(--accent-wash);   color: var(--accent-ink); border-color: var(--accent); }
+  .p-flat { background: var(--sunken); color: var(--muted); border-color: var(--line); }
+
+  /* ---------- blockers ---------- */
+
+  .blockers { display: flex; flex-direction: column; gap: 14px; margin-bottom: 20px; }
+  .blocker {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--critical);
+    border-radius: 0 6px 6px 0;
+    padding: 15px 17px;
+  }
+  .blocker.warn { border-left-color: var(--caution); }
+  .blocker-top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 9px;
+    margin-bottom: 7px;
+  }
+  .blocker-id {
+    font-family: var(--f-mono);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--faint);
+  }
+  .blocker-title {
+    font-family: var(--f-display);
+    font-weight: 600;
+    font-size: 15.5px;
+    line-height: 1.3;
+    margin: 0;
+    flex: 1 1 220px;
+  }
+  .blocker p { font-size: 14.5px; margin-bottom: 8px; color: var(--ink-soft); }
+  .blocker p:last-child { margin-bottom: 0; }
+  .loc {
+    font-family: var(--f-mono);
+    font-size: 11.5px;
+    color: var(--muted);
+    display: block;
+    margin-top: 8px;
+  }
+
+  /* ---------- phases ---------- */
+
+  .phase {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 4px 18px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 17px 18px;
+    margin-bottom: 12px;
+    box-shadow: var(--shadow);
+  }
+  @media (min-width: 640px) {
+    .phase { grid-template-columns: 92px 1fr; }
+  }
+  .phase-code {
+    font-family: var(--f-mono);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: .06em;
+    padding-top: 2px;
+  }
+  .phase-name {
+    font-family: var(--f-display);
+    font-weight: 600;
+    font-size: 16.5px;
+    margin: 0 0 4px;
+  }
+  .phase-dur {
+    font-family: var(--f-mono);
+    font-size: 11px;
+    color: var(--muted);
+    display: block;
+    margin-top: 3px;
+  }
+  .phase ul { margin: 8px 0 0; font-size: 14.5px; }
+  .exit {
+    margin-top: 11px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--line);
+    font-size: 13.8px;
+    color: var(--ink-soft);
+  }
+  .exit b {
+    font-family: var(--f-mono);
+    font-size: 10.5px;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    color: var(--muted);
+    display: block;
+    margin-bottom: 3px;
+  }
+
+  /* ---------- scope columns ---------- */
+
+  .cols {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+    margin-bottom: 18px;
+  }
+  @media (min-width: 680px) {
+    .cols { grid-template-columns: 1fr 1fr; }
+  }
+  .col {
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 16px 18px;
+    background: var(--surface);
+  }
+  .col.out { background: var(--sunken); border-style: dashed; }
+  .col h4 {
+    font-family: var(--f-mono);
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    margin: 0 0 11px;
+    color: var(--muted);
+  }
+  .col ul { margin: 0; padding-left: 19px; font-size: 14.5px; }
+
+  /* ---------- callout / decisions ---------- */
+
+  .callout {
+    background: var(--accent-wash);
+    border: 1px solid var(--accent);
+    border-radius: 6px;
+    padding: 16px 18px;
+    margin-bottom: 18px;
+  }
+  .callout p { font-size: 14.8px; color: var(--ink); }
+  .callout strong { color: var(--accent-ink); }
+
+  .decision {
+    border-bottom: 1px solid var(--line-soft);
+    padding: 14px 0;
+  }
+  .decision:last-child { border-bottom: none; padding-bottom: 0; }
+  .decision-q {
+    font-family: var(--f-display);
+    font-weight: 600;
+    font-size: 15.5px;
+    margin: 0 0 5px;
+  }
+  .decision p { font-size: 14.5px; margin-bottom: 0; color: var(--ink-soft); }
+  .rec {
+    font-family: var(--f-mono);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  /* ---------- tree ---------- */
+
+  .tree {
+    font-family: var(--f-mono);
+    font-size: 12.4px;
+    line-height: 1.72;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 16px 18px;
+    overflow-x: auto;
+    white-space: pre;
+    margin-bottom: 18px;
+    color: var(--ink-soft);
+  }
+  .tree b { color: var(--ink); font-weight: 600; }
+  .tree i { color: var(--faint); font-style: normal; }
+
+  footer {
+    border-top: 1px solid var(--line);
+    padding-top: 18px;
+    margin-top: 12px;
+    font-family: var(--f-mono);
+    font-size: 11.5px;
+    color: var(--faint);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="eyebrow">Project Plan · Rev B · Release 1 scope confirmed</p>
+    <h1>Khan Expert Field Engineer App</h1>
+    <p class="standfirst">A single-role Expo application for field technicians servicing AC and appliance call tickets — replacing the browser-based Field Engineer Portal with an offline-tolerant native app.</p>
+    <div class="meta">
+      <span>Scope <b>Engineer role only</b></span>
+      <span>Stack <b>Expo SDK 57 · expo-router</b></span>
+      <span>Backend <b>Existing Express + MongoDB</b></span>
+      <span>Target <b>Android-first</b></span>
+    </div>
+  </header>
+
+  <!-- 01 -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">01</span>
+      <h2>What we are building, and why it is not a port</h2>
+    </div>
+    <div class="sec-body">
+      <p>The CRM already has a Field Engineer Portal at <code>/engineer/assigned-calls</code>. It is a responsive web page that lists assigned call tickets and opens a drawer to update them. It works, but it assumes a desk: a stable connection, a keyboard, a file picker, and a browser session the technician keeps alive.</p>
+      <p>Field reality is different. A technician stands on a rooftop next to a condenser unit, reads a serial number off a label in bad light, photographs the installation, records what they did and what they collected, and moves to the next address. Connectivity is intermittent. The phone is mid-range Android. The session must survive a day without re-login.</p>
+      <p>So this is a rebuild around four things the web portal cannot do well: <b>camera capture</b> with on-device compression, <b>an offline write queue</b> so an update made in a basement is not lost, <b>push notification</b> of new assignments, and <b>a session that persists</b> in secure storage rather than <code>localStorage</code>.</p>
+      <p>Everything else — billing, purchases, masters, ledger, inventory, leads, user management — stays in the web CRM and is out of scope here. That is what makes this app small enough to be good.</p>
+    </div>
+  </section>
+
+  <!-- 02 -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">02</span>
+      <h2>What the engineer actually does today</h2>
+    </div>
+    <div class="sec-body">
+      <p>Read from <code>EngineerCallEditDrawer.tsx</code> and <code>engineerCallController.ts</code>, the current engineer workflow is narrow and well-defined. The app must reproduce exactly this, not more:</p>
+      <ol>
+        <li>Log in with phone or email plus a password set for them by an administrator.</li>
+        <li>See their assigned, still-open tickets. Closed tickets are hidden from the engineer entirely.</li>
+        <li>Open a ticket and read customer name, contact and WhatsApp numbers, address with pincode, route, brand, product, model, indoor and outdoor unit serial numbers, warranty terms and expiry, service type, and any notes left by office staff.</li>
+        <li>Enter the machine's serial number, read off the label on the back or bottom of the unit.</li>
+        <li>Set a sub-status — <i>In Progress</i>, <i>Attended</i>, <i>Pending Parts</i>, <i>Job Done</i>, <i>Work Completed</i>, <i>Customer Rescheduled</i>, <i>Customer Refused</i>.</li>
+        <li>Add line items for work performed: a service name such as Gas Charging or PCB Repair, plus an amount and optional remarks.</li>
+        <li>Record the amount collected from the customer.</li>
+        <li>Attach service photographs.</li>
+        <li>Write free-text visit remarks; supply a mandatory reason if the job was refused or cancelled.</li>
+      </ol>
+
+      <h3>Rules the server enforces, which the UI must mirror</h3>
+      <p>These are real constraints in <code>updateEngineerCallStatus</code>. The app should express each of them in its interface rather than letting the technician discover them through a rejected request:</p>
+      <ul>
+        <li>An engineer <b>cannot close or cancel</b> a ticket directly. Attempting either returns 403.</li>
+        <li>Once a ticket reaches <i>Job Done</i>, <i>Completed</i>, <i>Work Completed</i> or <i>Closed</i>, it is <b>locked</b> to the engineer. No further edits.</li>
+        <li>Primary <code>jobStatus</code> is writable only by office staff; the engineer writes <code>subStatus</code>. Marking a sub-status containing "job done" or "work completed" promotes the primary status server-side.</li>
+        <li>A cancellation or refusal <b>requires a reason</b>, or the request is rejected with 400.</li>
+        <li>Every engineer update appends an entry to the ticket's <code>activityLogs</code> — this is an audit trail the office reads.</li>
+      </ul>
+      <div class="callout">
+        <p><strong>Design consequence:</strong> the update screen is a form with a locked state, not a free editor. Render the lock as a read-only view with an explanation, disable the two forbidden statuses rather than listing them, and make the reason field appear and become required the moment a refusal status is chosen.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 03 -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">03</span>
+      <h2>Scope</h2>
+    </div>
+    <div class="sec-body">
+      <p><b>Release 1 is the list below, confirmed.</b> It is the ticket-handling app: an engineer logs in, sees their work, updates it, photographs it, records what was collected. Everything in this document from section 05 onward is scoped to that release.</p>
+      <p>A second body of work — engineer self-registration, KYC, skills, temporary ID cards, GPS arrival check-in, spare-part requests and a commission wallet — is specified separately in <code>docs/specs/</code> and summarised in section 09 as Release 2. It roughly triples the project, and part of it is blocked on business decisions nobody has made yet. Keeping the two releases distinct is what makes Release 1 shippable.</p>
+      <div class="cols">
+        <div class="col">
+          <h4>Release 1 — confirmed</h4>
+          <ul>
+            <li>Engineer login and persistent session</li>
+            <li>Assigned call list, search, status filter, pagination</li>
+            <li>Ticket detail view</li>
+            <li>Status and service update form</li>
+            <li>Camera capture and photo upload</li>
+            <li>Collected-amount entry</li>
+            <li>Engineer notes</li>
+            <li>Offline read cache and write queue</li>
+            <li>Push notification of new assignments</li>
+            <li>Tap-to-call, tap-to-WhatsApp, address to maps</li>
+            <li>Profile and logout</li>
+          </ul>
+        </div>
+        <div class="col out">
+          <h4>Out of scope — both releases</h4>
+          <ul>
+            <li>Billing, invoices, estimates, PDFs</li>
+            <li>Purchases and purchase parties</li>
+            <li>Masters — brand, product, party, warranty</li>
+            <li>Ledger and cashbook</li>
+            <li>Godown and inventory</li>
+            <li>Website leads</li>
+            <li>User management and permissions</li>
+            <li>Dashboard analytics</li>
+            <li>Creating new call tickets</li>
+            <li>Closing or cancelling tickets</li>
+            <li>iOS release in the first cut</li>
+          </ul>
+        </div>
+      </div>
+      <p>One deliberate exclusion deserves a note. The engineer records service line items with amounts, and those amounts flow into the office's billing process — but the app never shows invoices, totals or dues. The technician's job ends at "what I did and what I collected." The Release 2 wallet changes what the engineer sees about <i>their own</i> earnings; it still shows them nothing about the customer's invoice.</p>
+    </div>
+  </section>
+
+  <!-- 04 -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">04</span>
+      <h2>API surface the app depends on</h2>
+    </div>
+    <div class="sec-body">
+      <p>Every endpoint below already exists except where marked. Base URL is the deployed Express API; the app sends <code>Authorization: Bearer &lt;token&gt;</code>. Note that CORS does not apply to a native app, so the permissive CORS configuration in <code>index.ts</code> is not a mobile concern — it remains a web concern.</p>
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr><th>Method &amp; path</th><th>Purpose</th><th>Status</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>POST /api/engineer-auth/login</code></td><td>Exchange phone or email + password for a 30-day JWT</td><td><span class="pill p-ok">Exists</span></td></tr>
+            <tr><td><code>GET /api/engineer-auth/profile</code></td><td>Engineer name, phone, route, status</td><td><span class="pill p-ok">Exists</span></td></tr>
+            <tr><td><code>GET /api/engineer-calls</code></td><td>Assigned open tickets — <code>search</code>, <code>jobStatus</code>, <code>page</code>, <code>limit</code>, plus a status summary</td><td><span class="pill p-warn">Has bugs</span></td></tr>
+            <tr><td><code>PUT /api/engineer-calls/:id</code></td><td>Sub-status, serial, services, remarks, collected amount, cancel reason</td><td><span class="pill p-warn">Needs guard</span></td></tr>
+            <tr><td><code>POST /api/engineer-calls/:id/upload-image</code></td><td>Multipart under field <code>images</code> or <code>image</code>, or <code>imageBase64</code></td><td><span class="pill p-warn">Leaks temp files</span></td></tr>
+            <tr><td><code>POST /api/calls/:id/engineer-note</code></td><td>Append an engineer note to the ticket</td><td><span class="pill p-ok">Exists</span></td></tr>
+            <tr><td><code>GET /api/job-statuses/dropdown?category=sub</code></td><td>Sub-status options, with a fallback to the unfiltered list</td><td><span class="pill p-ok">Exists</span></td></tr>
+            <tr><td><code>GET /api/service-items/dropdown</code></td><td>Service names for the work-performed picker</td><td><span class="pill p-ok">Exists</span></td></tr>
+            <tr><td><code>GET /api/engineer-calls/:id</code></td><td>Single ticket, engineer-scoped — needed for push deep links and post-sync refresh</td><td><span class="pill p-crit">Missing</span></td></tr>
+            <tr><td><code>GET /api/engineer-calls?since=</code></td><td>Delta sync by <code>updatedAt</code> so the app refetches changes, not the whole list</td><td><span class="pill p-crit">Missing</span></td></tr>
+            <tr><td><code>POST /api/engineer-auth/device-token</code></td><td>Register an Expo push token against the engineer</td><td><span class="pill p-crit">Missing</span></td></tr>
+            <tr><td><code>POST /api/engineer-auth/change-password</code></td><td>Let an engineer set their own password</td><td><span class="pill p-crit">Missing</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The last item is worth dwelling on. There is today <b>no way for an engineer to set or reset their own password</b> — an administrator sets it through user management, and there is no forgot-password flow anywhere in the codebase. That is tolerable for a web page opened occasionally on a shared machine. For a personal device holding a 30-day session it is not, and it will generate support calls from day one.</p>
+    </div>
+  </section>
+
+  <!-- 05 -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">05</span>
+      <h2>Backend work this app requires first</h2>
+    </div>
+    <div class="sec-body">
+      <p>The mobile app will lean on the engineer endpoints far harder than the web portal ever did — more requests, worse networks, retries, and a long-lived token on a device that can be lost. Four defects in the current engineer path become materially worse under that load. These are prerequisites, not nice-to-haves.</p>
+
+      <div class="blockers">
+
+        <div class="blocker">
+          <div class="blocker-top">
+            <span class="blocker-id">B1</span>
+            <h3 class="blocker-title">Engineers are identified by name, not by ID</h3>
+            <span class="pill p-crit">Blocker</span>
+          </div>
+          <p>Assigned tickets are scoped with <code>{ engineer: engineerName }</code>, and the call document stores <code>engineer</code> as a plain string. Two technicians sharing a name see and edit each other's work. Renaming an engineer in the master silently detaches their entire history — on a phone, that presents as every ticket vanishing at once.</p>
+          <p>Add <code>engineerId</code> to the call schema, backfill it by name, scope all engineer queries by it, and keep the name field for display only.</p>
+          <span class="loc">backend/src/controllers/engineerCallController.ts:8, :90 · models/calldetailsModel.ts</span>
+        </div>
+
+        <div class="blocker">
+          <div class="blocker-top">
+            <span class="blocker-id">B2</span>
+            <h3 class="blocker-title">Searching silently drops the closed-ticket filter</h3>
+            <span class="pill p-crit">Blocker</span>
+          </div>
+          <p>In <code>getAssignedEngineerCalls</code> the filter sets <code>$or</code> for the <code>closerDate</code> condition, then overwrites that same key with the search <code>$or</code>. The moment the technician types in the search box, the exclusion of closed tickets disappears and closed work reappears in the list. The web portal masks this by re-filtering on the client; the app should not have to.</p>
+          <p>Move both conditions into an <code>$and</code> array.</p>
+          <span class="loc">backend/src/controllers/engineerCallController.ts:19–36</span>
+        </div>
+
+        <div class="blocker">
+          <div class="blocker-top">
+            <span class="blocker-id">B3</span>
+            <h3 class="blocker-title">The engineer routes have no permission guard</h3>
+            <span class="pill p-crit">Blocker</span>
+          </div>
+          <p><code>engineerCallRoutes.ts</code> applies only <code>authenticateJWT</code>. The ownership check inside the controller fires only when the role is literally <code>engineer</code>, so any other authenticated account — including a staff user holding no permissions at all — can edit any call ticket through this route, bypassing <code>calls:edit</code>.</p>
+          <p>Restrict the router to the engineer role and make the ownership check unconditional.</p>
+          <span class="loc">backend/src/routes/engineerCallRoutes.ts · controllers/engineerCallController.ts:113</span>
+        </div>
+
+        <div class="blocker">
+          <div class="blocker-top">
+            <span class="blocker-id">B4</span>
+            <h3 class="blocker-title">Uploaded temp files are never deleted</h3>
+            <span class="pill p-crit">Blocker</span>
+          </div>
+          <p><code>express-fileupload</code> runs with <code>useTempFiles: true</code> writing into <code>./tmp/</code>, and <code>fs.unlink</code> appears nowhere in the backend. Every photo already leaks a file onto the server disk. An app that encourages three or four photos per visit across a field team will fill that disk, and there is no MIME or extension validation on the way in either.</p>
+          <p>Delete the temp file in a <code>finally</code> block after the Cloudinary upload, and validate type and size before accepting.</p>
+          <span class="loc">backend/src/index.ts:63–70 · controllers/calldetailsController.ts (uploadServiceImage)</span>
+        </div>
+
+        <div class="blocker warn">
+          <div class="blocker-top">
+            <span class="blocker-id">B5</span>
+            <h3 class="blocker-title">Login is unthrottled and the token lives 30 days</h3>
+            <span class="pill p-warn">High</span>
+          </div>
+          <p><code>express-rate-limit</code> is installed and applied to the public website-lead endpoints, but neither login route is throttled. Engineer tokens are issued for 30 days with no refresh mechanism and no server-side revocation, so a lost phone is a lost account until an administrator deactivates the engineer.</p>
+          <p>Rate-limit both login routes, and pair a short access token with a refresh token the app can rotate — or at minimum ship the change-password endpoint from section 04 so a compromised account can be recovered by its owner.</p>
+          <span class="loc">backend/src/routes/engineerAuthRoutes.ts · controllers/engineerAuthController.ts:38</span>
+        </div>
+
+        <div class="blocker warn">
+          <div class="blocker-top">
+            <span class="blocker-id">B6</span>
+            <h3 class="blocker-title">The list endpoint refetches every assigned ticket on every request</h3>
+            <span class="pill p-warn">High</span>
+          </div>
+          <p>Alongside the paginated query, <code>getAssignedEngineerCalls</code> loads <i>all</i> of the engineer's open tickets a second time purely to compute four summary counts. On a phone polling for updates this is the single most expensive call in the app.</p>
+          <p>Replace the second query with an aggregation, and add the <code>?since=</code> delta parameter so routine refreshes transfer almost nothing.</p>
+          <span class="loc">backend/src/controllers/engineerCallController.ts:47–72</span>
+        </div>
+
+      </div>
+
+      <p>B1 through B4 should land before the app's first field test. B5 and B6 can follow during the beta, but not after general release.</p>
+    </div>
+  </section>
+
+  <!-- 06 -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">06</span>
+      <h2>Screens</h2>
+    </div>
+    <div class="sec-body">
+      <p>Nine screens. The route column maps to the expo-router tree already created under <code>mobile/app/</code>.</p>
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr><th>Screen</th><th>Route</th><th>Does</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Login</td><td><code>(auth)/login</code></td><td>Phone or email + password. Remembers the identifier, never the password.</td></tr>
+            <tr><td>Assigned calls</td><td><code>(tabs)/calls/index</code></td><td>The home screen. Summary counts, search, status filter, pull-to-refresh, infinite scroll, offline badge.</td></tr>
+            <tr><td>Ticket detail</td><td><code>call/[id]/index</code></td><td>Customer, site, machine, warranty, notes, photos, activity history. Tap-to-call, WhatsApp, maps.</td></tr>
+            <tr><td>Update ticket</td><td><code>call/[id]/update</code></td><td>The core form: sub-status, serial, services, collected amount, remarks, cancel reason.</td></tr>
+            <tr><td>Services editor</td><td><code>call/[id]/services</code></td><td>Repeating rows of service name + amount + remarks, with a running total.</td></tr>
+            <tr><td>Photo capture</td><td><code>call/[id]/photos</code></td><td>Camera or gallery, compress, queue, retry. Shows already-uploaded photos.</td></tr>
+            <tr><td>Profile</td><td><code>(tabs)/profile</code></td><td>Name, phone, route, app version, change password, logout.</td></tr>
+            <tr><td>Sync queue</td><td><code>(tabs)/profile/sync</code></td><td>Pending offline writes, their state, and a manual retry. Visible so the technician can trust it.</td></tr>
+            <tr><td>Offline notice</td><td>—</td><td>A persistent banner, not a screen. States connection and pending-write count.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout">
+        <p><strong>The sync queue screen is not optional.</strong> A technician who cannot see that their update is still pending will submit it again, or assume it is lost and telephone the office. Making the queue visible is what converts offline support from a source of doubt into a feature.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 07 -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">07</span>
+      <h2>Architecture</h2>
+    </div>
+    <div class="sec-body">
+      <h3>Folder structure</h3>
+      <p>Already created on disk. <code>app/</code> holds routes only — every file there becomes a screen — while real logic lives in <code>src/</code>.</p>
+      <div class="tree"><b>mobile/</b>
+├── <b>app/</b>                      <i>routes only (expo-router)</i>
+│   ├── (auth)/               <i>login</i>
+│   ├── (tabs)/               <i>calls · profile</i>
+│   │   └── calls/
+│   └── call/[id]/            <i>detail · update · services · photos</i>
+├── <b>assets/</b>                   <i>images · icons · fonts · animations</i>
+├── <b>src/</b>
+│   ├── api/                  <i>axios instance, auth header, 401 handling</i>
+│   │   └── endpoints/        <i>engineerAuth · engineerCalls · dropdowns</i>
+│   ├── components/
+│   │   ├── common/ forms/ layout/ feedback/
+│   │   ├── calls/            <i>call card, detail sections</i>
+│   │   ├── media/            <i>photo picker, upload preview</i>
+│   │   └── status/           <i>status pickers, badges</i>
+│   ├── features/
+│   │   ├── auth/ calls/ profile/ sync/
+│   ├── services/
+│   │   ├── camera/ location/ notifications/ storage/ offline/
+│   ├── config/ constants/ context/ hooks/ lib/
+│   ├── store/ theme/ types/ utils/
+│   └── localization/translations/
+├── scripts/ docs/ plugins/ patches/
+└── __tests__/{unit,integration}/  __mocks__/</div>
+
+      <h3>Key decisions</h3>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>Concern</th><th>Choice</th><th>Reason</th></tr></thead>
+          <tbody>
+            <tr><td>Navigation</td><td>expo-router</td><td>File-based, deep-linkable — push notifications open a ticket directly.</td></tr>
+            <tr><td>Server state</td><td>TanStack Query + persisted cache</td><td>Caching, retry and background refetch are the whole problem here; hand-rolling them is the mistake.</td></tr>
+            <tr><td>Client state</td><td>React Context, or Zustand if it grows</td><td>The app holds a session and a queue. Redux is not warranted.</td></tr>
+            <tr><td>Offline storage</td><td>SQLite via expo-sqlite</td><td>Tickets and the write queue are relational and queried; key-value storage would not survive the list screen.</td></tr>
+            <tr><td>Token storage</td><td>expo-secure-store</td><td>Keystore-backed. The web app's <code>localStorage</code> habit must not carry over.</td></tr>
+            <tr><td>Forms</td><td>react-hook-form + zod</td><td>The update form has conditional requirements — the reason field appears and becomes mandatory on refusal.</td></tr>
+            <tr><td>Images</td><td>expo-image-picker + expo-image-manipulator</td><td>Compress on device before upload. A 12MP photo over rural mobile data is a failed request; the server caps at 10&nbsp;MB.</td></tr>
+            <tr><td>Push</td><td>expo-notifications</td><td>New assignment and reschedule alerts. Requires the device-token endpoint from section 04.</td></tr>
+            <tr><td>Errors</td><td>Sentry</td><td>Field failures are not reproducible at a desk.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Offline model</h3>
+      <p>Reads are cache-first: the ticket list and each opened ticket are written to SQLite and served from it immediately, then revalidated. A technician who opens the app in a lift sees yesterday's list rather than a spinner.</p>
+      <p>Writes go into a durable queue, each entry holding the ticket ID, the payload, a client-generated idempotency key, an attempt count and a state. A background task drains the queue whenever connectivity returns, in submission order. Photos queue as local file URIs and upload separately, so a large image cannot block a status update.</p>
+      <p>Two rules keep this honest. First, the queue is <b>visible</b> — see section 06. Second, the server is always the winner on conflict: if a ticket was locked or closed by the office while the technician was offline, the queued write is rejected, and the app surfaces that as a clear message naming the ticket, rather than retrying forever or discarding it silently.</p>
+      <div class="callout">
+        <p><strong>Idempotency needs a server counterpart.</strong> <code>PUT /api/engineer-calls/:id</code> appends to <code>activityLogs</code> on every call, so a retried request writes a duplicate audit entry. Either honour a client idempotency key, or make the app's retry strategy strictly at-most-once for updates that may have partially succeeded.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 08 -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">08</span>
+      <h2>Non-functional requirements</h2>
+    </div>
+    <div class="sec-body">
+      <ul>
+        <li><b>Devices.</b> Android-first, mid-range and older. Assume 3&nbsp;GB RAM and a 720p screen as the floor. iOS only if technicians actually carry iPhones — confirm before spending on it.</li>
+        <li><b>Network.</b> Every screen must have a defined state for offline, slow, and failed. No infinite spinners.</li>
+        <li><b>Photographs.</b> Resize and compress before upload; target well under 1&nbsp;MB per image against the server's 10&nbsp;MB cap.</li>
+        <li><b>Battery and data.</b> Poll sparingly and prefer push. Delta sync over full refetch once <code>?since=</code> exists.</li>
+        <li><b>Language.</b> The <code>localization/</code> folder exists for a reason — Bengali and Hindi are realistic needs for a West Bengal field team. Decide early; retrofitting strings is expensive.</li>
+        <li><b>Accessibility.</b> Large tap targets and high contrast. The app is used outdoors, in sunlight, sometimes with gloves.</li>
+        <li><b>Distribution.</b> EAS Build. Internal distribution APK for the beta; Play Store only if the team wants managed updates.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 09 -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">09</span>
+      <h2>Delivery phases</h2>
+    </div>
+    <div class="sec-body">
+
+      <div class="phase">
+        <div><span class="phase-code">P0</span><span class="phase-dur">2–3 days</span></div>
+        <div>
+          <h3 class="phase-name">Backend prerequisites</h3>
+          <ul>
+            <li>Fix B1 through B4 — engineer ID scoping, the <code>$or</code> overwrite, the route guard, temp-file cleanup</li>
+            <li>Add <code>GET /api/engineer-calls/:id</code></li>
+            <li>Add the change-password endpoint</li>
+            <li>Backfill <code>engineerId</code> on existing call documents</li>
+          </ul>
+          <div class="exit"><b>Exit criteria</b>Engineer endpoints return correct data under search, reject non-engineer callers, and leave no files in <code>./tmp/</code>.</div>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div><span class="phase-code">P1</span><span class="phase-dur">3–4 days</span></div>
+        <div>
+          <h3 class="phase-name">Foundation</h3>
+          <ul>
+            <li>Expo project init, expo-router, TypeScript, path aliases</li>
+            <li>Theme, typography, base components</li>
+            <li>API client with token injection and 401 handling</li>
+            <li>Login, secure token storage, session restore, logout</li>
+            <li>EAS build profiles; first APK on a real device</li>
+          </ul>
+          <div class="exit"><b>Exit criteria</b>An engineer logs in on a physical phone and the session survives a cold start.</div>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div><span class="phase-code">P2</span><span class="phase-dur">5–7 days</span></div>
+        <div>
+          <h3 class="phase-name">Core workflow, online only</h3>
+          <ul>
+            <li>Assigned call list with summary, search, filter, pagination</li>
+            <li>Ticket detail with call, WhatsApp and maps actions</li>
+            <li>Update form with the full rule set — locked state, forbidden statuses, conditional reason</li>
+            <li>Services editor with running total; collected-amount entry</li>
+            <li>Photo capture, compression and upload</li>
+          </ul>
+          <div class="exit"><b>Exit criteria</b>One technician completes a real visit end to end using only the app, and the office sees a correct activity log.</div>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div><span class="phase-code">P3</span><span class="phase-dur">4–6 days</span></div>
+        <div>
+          <h3 class="phase-name">Offline and sync</h3>
+          <ul>
+            <li>SQLite cache for tickets and lookups</li>
+            <li>Durable write queue with retry, ordering and idempotency keys</li>
+            <li>Connectivity banner and the sync queue screen</li>
+            <li>Conflict handling for tickets locked or closed while offline</li>
+            <li><code>?since=</code> delta sync and the summary aggregation (B6)</li>
+          </ul>
+          <div class="exit"><b>Exit criteria</b>A full visit recorded in airplane mode syncs cleanly on reconnect, with no duplicate audit entries.</div>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div><span class="phase-code">P4</span><span class="phase-dur">3–5 days</span></div>
+        <div>
+          <h3 class="phase-name">Hardening and release</h3>
+          <ul>
+            <li>Push notifications and the device-token endpoint</li>
+            <li>Login rate limiting and token strategy (B5)</li>
+            <li>Sentry, analytics on the update funnel</li>
+            <li>Localization pass, if confirmed in section 10</li>
+            <li>Field beta with two or three technicians for a week</li>
+          </ul>
+          <div class="exit"><b>Exit criteria</b>A week of beta with no lost updates and no support calls about the app itself.</div>
+        </div>
+      </div>
+
+      <p style="margin-top:18px">Roughly <b>17 to 25 working days</b> of build for one developer, excluding the beta week. The estimate assumes the P0 backend work is done first; attempting P2 against the current engineer endpoints will cost more than the two days P0 takes.</p>
+
+      <h3>Release 2 — the extended platform</h3>
+      <p>Specified in full under <code>docs/specs/</code>. Summarised here so the shape of the whole programme is visible from one place.</p>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>Module</th><th>Spec</th><th>Depends on</th><th>Rough effort</th></tr></thead>
+          <tbody>
+            <tr><td>Skills master</td><td><code>03-skills.md</code></td><td>Nothing — build first</td><td class="num">4–6 d</td></tr>
+            <tr><td>Registration &amp; approval</td><td><code>01-auth-and-registration.md</code></td><td>Skills</td><td class="num">10–14 d</td></tr>
+            <tr><td>KYC &amp; documents</td><td><code>02-kyc-and-documents.md</code></td><td>Registration</td><td class="num">8–12 d</td></tr>
+            <tr><td>Assignment &amp; dashboard</td><td><code>04-assignment-and-dashboard.md</code></td><td>Skills · <code>engineerId</code> (B1)</td><td class="num">8–10 d</td></tr>
+            <tr><td>Temporary ID card</td><td><code>05-id-card.md</code></td><td>Assignment</td><td class="num">4–6 d</td></tr>
+            <tr><td>Job execution &amp; check-in</td><td><code>06-job-execution.md</code></td><td>Assignment</td><td class="num">12–16 d</td></tr>
+            <tr><td>Spare parts</td><td><code>07-spare-parts.md</code></td><td>Job execution · stock fix</td><td class="num">6–8 d</td></tr>
+            <tr><td>Wallet &amp; settlement</td><td><code>08-wallet-and-payments.md</code></td><td>Everything above</td><td class="num">10–14 d</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>About <b>52 to 73 working days</b> for one developer across both releases, and roughly half of Release 2 is backend and admin-panel work rather than mobile. That is a three to four month single-developer programme. Splitting backend from mobile across two people is the obvious compression, but the backend must still lead.</p>
+
+      <div class="callout">
+        <p><strong>Ship Release 1 first, and do not wait for Release 2 to be decided.</strong> The wallet is blocked on a commission model nobody has specified, and the KYC schema is blocked on a legal question about what the business may retain of an Aadhaar number. Neither is a developer's decision. Release 1 depends on neither, delivers the app technicians actually asked for, and puts something in their hands while those answers are found.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10 -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">10</span>
+      <h2>Decisions needed before P1</h2>
+    </div>
+    <div class="sec-body">
+      <p>Five questions change the Release 1 build. The rest I can decide as I go. Release 2 carries nineteen more, catalogued in <code>docs/specs/11-open-questions.md</code> — including the commission model and the Aadhaar retention question, both of which need someone with business authority rather than a developer.</p>
+
+      <div class="decision">
+        <p class="decision-q">Is offline support in the first release, or a fast follow?</p>
+        <p>P3 is a quarter of the total effort. Shipping online-only first gets the app into hands two weeks sooner, at the cost of updates lost in basements and lift shafts. <span class="rec">Recommend</span> including it — for a field team it is the reason to have an app at all.</p>
+      </div>
+
+      <div class="decision">
+        <p class="decision-q">Android only, or iOS too?</p>
+        <p>iOS adds Apple Developer enrolment, review cycles and device testing. <span class="rec">Recommend</span> Android-first unless technicians already carry iPhones.</p>
+      </div>
+
+      <div class="decision">
+        <p class="decision-q">Bengali or Hindi, or English only?</p>
+        <p>Cheap to build in from the start, expensive to retrofit. Needs a real answer about who uses the app, not an assumption.</p>
+      </div>
+
+      <div class="decision">
+        <p class="decision-q">Who fixes the backend blockers?</p>
+        <p>P0 is backend work in a separate repository with its own deployment. If that is someone else's, it needs scheduling now, because P2 depends on it.</p>
+      </div>
+
+      <div class="decision">
+        <p class="decision-q">Should engineers see closed tickets at all?</p>
+        <p>Today the server hides them completely. Technicians often want yesterday's work for reference — a read-only history tab is small, but it is a product decision and a new query.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    Khan Expert Tech CRM · Field Engineer App · Plan Rev B · Release 1 · Extended scope in docs/specs/
+  </footer>
+
+</div>
