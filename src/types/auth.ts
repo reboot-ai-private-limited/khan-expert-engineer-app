@@ -10,16 +10,77 @@
  */
 export type EngineerAccountStatus = 'pending_approval' | 'changes_requested' | 'rejected' | 'active';
 
+/**
+ * How the engineer is engaged. 'in_house' is the company's own staff and is
+ * set by the office only — the app can only ever pick one of the two
+ * external types.
+ */
+export type EngineerType = 'in_house' | 'freelance' | 'service_center';
+
+export const ENGINEER_TYPE_LABELS: Record<EngineerType, string> = {
+  in_house: 'Company engineer',
+  freelance: 'Freelance',
+  service_center: 'Service centre',
+};
+
+/** The two an applicant may choose during registration. */
+export const SELECTABLE_ENGINEER_TYPES: EngineerType[] = ['freelance', 'service_center'];
+
+export interface EngineerAddress {
+  line1?: string;
+  city?: string;
+  district?: string;
+  state?: string;
+  pincode?: string;
+}
+
 /** The `engineer` object in a successful login response. */
 export interface EngineerProfile {
   id: string;
+  /** Permanent, human-readable unique id, e.g. `KET-ENG-0007`. Assigned by the server. */
+  engineerCode?: string;
+  engineerType?: EngineerType;
   name: string;
   email: string;
   phone: string;
   role: 'engineer';
   accountStatus?: EngineerAccountStatus;
+  route?: string;
+  yearsOfExperience?: number;
+  address?: EngineerAddress;
   /** The rejection reason, or what to fix for a changes-requested decision. */
   reviewNote?: string;
+}
+
+/**
+ * PUT /api/engineer-auth/profile — self-service edit.
+ *
+ * Name and phone are missing on purpose: the server refuses them. Name is
+ * printed on the customer-facing job ID card and is still what un-backfilled
+ * tickets match on; phone is the login id. Both go through the office.
+ */
+export interface UpdateProfileRequest {
+  email?: string;
+  route?: string;
+  yearsOfExperience?: number;
+  addressLine1?: string;
+  city?: string;
+  district?: string;
+  state?: string;
+  pincode?: string;
+  engineerType?: EngineerType;
+}
+
+export interface UpdateProfileResponse {
+  success: boolean;
+  message: string;
+  engineer: EngineerProfile;
+}
+
+/** PUT /api/engineer-auth/password */
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
 }
 
 /** POST /api/engineer-auth/login */
@@ -50,6 +111,7 @@ export interface RegisterRequest {
   state?: string;
   pincode?: string;
   skillIds?: string[];
+  engineerType?: EngineerType;
 }
 
 export interface RegisterResponse {
@@ -70,6 +132,8 @@ export interface RegistrationStatusResponse {
     name: string;
     phone: string;
     email?: string;
+    engineerCode?: string;
+    engineerType?: EngineerType;
     route?: string;
     yearsOfExperience?: number;
     address?: {
@@ -85,6 +149,7 @@ export interface RegistrationStatusResponse {
 /** PUT /api/engineer-auth/registration — resubmission after changes_requested */
 export interface ResubmitRequest {
   name?: string;
+  engineerType?: EngineerType;
   email?: string;
   route?: string;
   yearsOfExperience?: number;

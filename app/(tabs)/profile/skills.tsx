@@ -10,6 +10,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
+import { compressAsset } from '@/utils/imageCapture';
 import { skillsApi } from '@/api/endpoints/skills';
 import { isNetworkError, serverMessage } from '@/api/client';
 import { Notice } from '@/components/feedback/Notice';
@@ -85,7 +87,12 @@ export default function MySkillsScreen() {
     if (skill.requiresCertification) {
       Alert.alert(
         'Certificate required',
-        `"${skill.name}" needs a certificate uploaded before it can be requested. That isn't available in the app yet — contact the office and they can add it for you.`
+        `"${skill.name}" needs proof of certification before it can be requested.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Take photo', onPress: () => void captureCertificateAndRequest(skill, 'camera') },
+          { text: 'Choose from gallery', onPress: () => void captureCertificateAndRequest(skill, 'library') },
+        ]
       );
       return;
     }
@@ -93,6 +100,38 @@ export default function MySkillsScreen() {
     setBusySkillId(skill._id);
     try {
       const next = await skillsApi.request(skill._id);
+      setMine(next);
+    } catch (error) {
+      Alert.alert('Could not request this skill', serverMessage(error) ?? (error as Error).message);
+    } finally {
+      setBusySkillId(null);
+    }
+  };
+
+  const captureCertificateAndRequest = async (skill: Skill, source: 'camera' | 'library') => {
+    const permission =
+      source === 'camera'
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Permission needed', `Enable ${source === 'camera' ? 'camera' : 'photo library'} access in your phone settings to add this photo.`);
+      return;
+    }
+
+    // Resized before encoding — a full-resolution base64 exhausts the heap
+    // and gets the app killed. See utils/imageCapture.ts.
+    const result =
+      source === 'camera'
+        ? await ImagePicker.launchCameraAsync({ quality: 1, mediaTypes: ['images'] })
+        : await ImagePicker.launchImageLibraryAsync({ quality: 1, mediaTypes: ['images'] });
+    if (result.canceled) return;
+    const asset = result.assets[0];
+
+    setBusySkillId(skill._id);
+    try {
+      const dataUri = (await compressAsset(asset)).dataUri;
+      const certificateUrl = await skillsApi.uploadCertificate(dataUri);
+      const next = await skillsApi.request(skill._id, certificateUrl);
       setMine(next);
     } catch (error) {
       Alert.alert('Could not request this skill', serverMessage(error) ?? (error as Error).message);

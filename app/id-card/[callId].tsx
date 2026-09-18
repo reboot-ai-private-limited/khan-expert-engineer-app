@@ -3,11 +3,11 @@ import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import QRCode from 'react-native-qrcode-svg';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { idCardApi } from '@/api/endpoints/idCard';
 import { idCardCache } from '@/services/storage/idCardCache';
 import { isNetworkError, serverMessage } from '@/api/client';
+import { COMPANY } from '@/constants/company';
 import { colors, radius, spacing, typography } from '@/theme';
 import type { IdCard } from '@/types/idCard';
 
@@ -115,8 +115,8 @@ const CardFace: React.FC<{ card: IdCard }> = ({ card }) => {
           <Ionicons name="shield-checkmark" size={18} color={colors.textOnBrand} />
         </View>
         <View>
-          <Text style={[typography.bodyStrong, styles.brandName]}>Khan Expert Tech</Text>
-          <Text style={[typography.caption, styles.brandSub]}>Service Engineer</Text>
+          <Text style={[typography.bodyStrong, styles.brandName]}>{COMPANY.name}</Text>
+          <Text style={[typography.caption, styles.brandSub]}>{COMPANY.tagline}</Text>
         </View>
       </View>
 
@@ -167,9 +167,21 @@ const CardFace: React.FC<{ card: IdCard }> = ({ card }) => {
         <Text style={[typography.bodyStrong, styles.jobValue]}>{new Date(card.validUntil).toLocaleString()}</Text>
       </View>
 
-      <View style={styles.qrWrap}>
-        <QRCode value={card.verifyUrl} size={220} color={colors.text} backgroundColor={colors.surface} />
-        <Text style={[typography.caption, styles.qrHint]}>Ask the customer to scan to verify</Text>
+      <View style={styles.companyWrap}>
+        <Text style={[typography.label, styles.companyHeading]}>Issued by</Text>
+        <Text style={[typography.caption, styles.companyLine]}>{COMPANY.address}</Text>
+        <View style={styles.companyRow}>
+          <Ionicons name="call-outline" size={13} color={colors.textMuted} />
+          <Text style={[typography.caption, styles.companyLine]}>{COMPANY.mobile}</Text>
+        </View>
+        <View style={styles.companyRow}>
+          <Ionicons name="mail-outline" size={13} color={colors.textMuted} />
+          <Text style={[typography.caption, styles.companyLine]}>{COMPANY.email}</Text>
+        </View>
+        <Text style={[typography.caption, styles.companyLine]}>GSTIN: {COMPANY.gstin}</Text>
+        <Text style={[typography.caption, styles.companyHint]}>
+          Call the office number above if you need to confirm this engineer.
+        </Text>
       </View>
     </View>
   );
@@ -325,15 +337,26 @@ const styles = StyleSheet.create({
   jobValue: {
     color: colors.text,
   },
-  qrWrap: {
-    alignItems: 'center',
-    gap: spacing.sm,
+  companyWrap: {
+    gap: spacing.xs,
     marginTop: spacing.sm,
     paddingTop: spacing.lg,
     borderTopWidth: 1,
     borderTopColor: colors.borderSoft,
   },
-  qrHint: {
+  companyHeading: {
+    color: colors.textFaint,
+  },
+  companyLine: {
     color: colors.textMuted,
+  },
+  companyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  companyHint: {
+    color: colors.textFaint,
+    marginTop: spacing.xs,
   },
 });

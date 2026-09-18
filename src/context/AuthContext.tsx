@@ -15,6 +15,7 @@ import {
   type AuthStatus,
   type EngineerProfile,
   type RegisterRequest,
+  type UpdateProfileRequest,
   type ResubmitRequest,
 } from '@/types/auth';
 
@@ -26,6 +27,8 @@ interface AuthContextValue {
   login: (loginId: string, password: string) => Promise<void>;
   /** Submits a new application and signs the engineer straight in, pending review. */
   register: (payload: RegisterRequest) => Promise<void>;
+  /** Saves a self-service profile edit and adopts the server's copy of the result. */
+  updateProfile: (payload: UpdateProfileRequest) => Promise<void>;
   /** Re-reads accountStatus from the server — used by the status screen to notice a decision. */
   refreshRegistrationStatus: () => Promise<void>;
   /** Only works while accountStatus is 'changes_requested'. */
@@ -96,10 +99,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setStatus('authenticated');
 
       try {
-        const valid = await engineerAuthApi.validateSession();
+        const { valid, profile } = await engineerAuthApi.validateSession();
         if (cancelled) return;
         if (!valid) {
           await endSession('Your session has expired. Please sign in again.');
+        } else if (profile) {
+          // Adopt the server's copy so fields the cached login response
+          // predates — engineer code, account type — show up without
+          // making the engineer sign in again.
+          setEngineer(profile);
+          void sessionStorage.setProfile(profile);
         }
       } catch {
         // Offline. Keep the cached session — the engineer may be in a
@@ -164,6 +173,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setStatus('authenticated');
   }, []);
 
+  const updateProfile = useCallback(async (payload: UpdateProfileRequest) => {
+    const saved = await engineerAuthApi.updateProfile(payload);
+    if (!mounted.current) return;
+
+    // Merge rather than replace: the response carries the profile fields, but
+    // reviewNote only ever comes from the registration-status endpoint, so a
+    // straight overwrite would drop it.
+    setEngineer((prev) => {
+      const next: EngineerProfile = { ...(prev ?? ({} as EngineerProfile)), ...saved };
+      void sessionStorage.setProfile(next);
+      return next;
+    });
+  }, []);
+
   const refreshRegistrationStatus = useCallback(async () => {
     const result = await engineerAuthApi.getRegistrationStatus();
     if (!mounted.current) return;
@@ -206,6 +229,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       sessionEndedReason,
       login,
       register,
+      updateProfile,
       refreshRegistrationStatus,
       resubmitRegistration,
       logout,
@@ -218,6 +242,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       sessionEndedReason,
       login,
       register,
+      updateProfile,
       refreshRegistrationStatus,
       resubmitRegistration,
       logout,

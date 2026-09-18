@@ -3,6 +3,7 @@ import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Tex
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { CallCard } from '@/components/calls/CallCard';
+import { JobStatsRow } from '@/components/calls/JobStatsRow';
 import { SearchBar } from '@/components/calls/SearchBar';
 import { Button } from '@/components/common/Button';
 import { Notice } from '@/components/feedback/Notice';
@@ -24,7 +25,7 @@ const matchesSearch = (call: EngineerCall, query: string): boolean => {
 export default function CallsScreen() {
   const insets = useSafeAreaInsets();
   const { engineer } = useAuth();
-  const { calls, loading, refreshing, errorMessage, refresh } = useCalls();
+  const { calls, closedCalls, loading, refreshing, errorMessage, refresh } = useCalls();
 
   const [search, setSearch] = useState('');
 
@@ -52,6 +53,12 @@ export default function CallsScreen() {
           <View style={styles.header}>
             <Text style={[typography.label, styles.eyebrow]}>Hi {firstName}</Text>
             <Text style={[typography.display, styles.title]}>Your jobs</Text>
+
+            <JobStatsRow
+              calls={calls}
+              closedCalls={closedCalls}
+              onSelect={(filter) => router.push({ pathname: '/(tabs)/calls/list', params: { filter } })}
+            />
 
             <SearchBar value={search} onChangeText={setSearch} />
 

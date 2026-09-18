@@ -1,6 +1,7 @@
 import React from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, radius, spacing, typography } from '@/theme';
+import { isFinished } from '@/utils/callStatus';
 import type { EngineerCall } from '@/types/call';
 import { StatusPill } from './StatusPill';
 
@@ -26,6 +27,9 @@ const formatWhen = (iso: string | undefined): string | null => {
 export const CallCard: React.FC<CallCardProps> = ({ call }) => {
   const scheduled = formatWhen(call.visitdate ?? call.etaDate);
   const machine = [call.brandName, call.productsName].filter(Boolean).join(' · ');
+  // The engineer has no reason to reach the customer once the job is done,
+  // so the number stops being offered here (see also the job detail screen).
+  const canCallCustomer = Boolean(call.contactNumber) && !isFinished(call);
 
   const callCustomer = () => {
     if (!call.contactNumber) return;
@@ -65,7 +69,7 @@ export const CallCard: React.FC<CallCardProps> = ({ call }) => {
             </Text>
           ) : null}
 
-          {call.contactNumber ? (
+          {canCallCustomer ? (
             <Pressable
               onPress={callCustomer}
               hitSlop={10}

@@ -1,62 +1,34 @@
-import React, { useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Linking,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import React, { useEffect } from 'react';
+import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { jobStatusesApi, type JobStatusOption } from '@/api/endpoints/jobStatuses';
-import { engineerCallsApi } from '@/api/endpoints/engineerCalls';
-import { serviceTypesApi } from '@/api/endpoints/serviceTypes';
-import { isNetworkError, serverMessage } from '@/api/client';
-import { CheckInOutCard } from '@/components/calls/CheckInOutCard';
+import { CancellationCard } from '@/components/calls/CancellationCard';
 import { InfoRow } from '@/components/calls/InfoRow';
-import { PhotoGrid } from '@/components/calls/PhotoGrid';
-import { ServiceLineEditor } from '@/components/calls/ServiceLineEditor';
+import { OfficeNotesCard } from '@/components/calls/OfficeNotesCard';
 import { StatusPill } from '@/components/calls/StatusPill';
-import { StepChecklist, type StepInput } from '@/components/calls/StepChecklist';
 import { Button } from '@/components/common/Button';
-import { SelectField } from '@/components/common/SelectField';
-import { TextField } from '@/components/common/TextField';
 import { Notice } from '@/components/feedback/Notice';
 import { useCalls } from '@/context/CallsContext';
 import { colors, radius, spacing, typography } from '@/theme';
-import type { EngineerServiceLine, ServiceImage, ServiceStep } from '@/types/call';
-
-/** Shown if the sub-status master can't be reached — same wording as the web fallback. */
-const FALLBACK_SUB_STATUSES = [
-  'In Progress',
-  'Attended',
-  'Pending Parts',
-  'Job Done',
-  'Work Completed',
-  'Customer Rescheduled',
-  'Customer Refused',
-];
-
-const isCancelLike = (text: string): boolean => {
-  const t = text.toLowerCase();
-  return t.includes('cancel') || t.includes('refuse');
-};
-
-const isCompletingLike = (text: string): boolean => {
-  const t = text.toLowerCase();
-  return t.includes('job done') || t.includes('work completed') || t === 'completed';
-};
+import { isClosed, isFinished } from '@/utils/callStatus';
+import { canShowCustomerLocation, openCustomerLocation } from '@/utils/maps';
+import { JOB_STEPS, currentStep, isStepUnlocked, stepProgress, type JobStepDef } from '@/utils/jobSteps';
+import type { EngineerCall } from '@/types/call';
 
 const isLocked = (jobStatus: string, subStatus: string | undefined): boolean => {
   const s = [jobStatus, subStatus ?? ''].map((v) => v.trim().toLowerCase());
   return s.some((v) => v === 'job done' || v === 'completed' || v === 'work completed' || v === 'closed');
 };
 
+/**
+ * The job overview.
+ *
+ * Used to be one long screen holding every part of the visit at once. It is
+ * now a map of the job: the details that never change, and the list of
+ * steps, each opening on its own screen. An engineer outdoors sees one task
+ * at a time instead of scrolling past ten cards hunting for the live one.
+ */
 export default function CallDetailScreen() {
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -64,152 +36,12 @@ export default function CallDetailScreen() {
 
   const call = getById(id);
 
-  const [subStatusOptions, setSubStatusOptions] = useState<string[]>(FALLBACK_SUB_STATUSES);
-  const [subStatus, setSubStatus] = useState('');
-  const [serialNumber, setSerialNumber] = useState('');
-  const [remarks, setRemarks] = useState('');
-  const [cancelReason, setCancelReason] = useState('');
-  const [services, setServices] = useState<EngineerServiceLine[]>([]);
-  const [serviceImages, setServiceImages] = useState<ServiceImage[]>([]);
-  const [submitting, setSubmitting] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
-  const [serviceSteps, setServiceSteps] = useState<ServiceStep[]>([]);
-  const [stepInputs, setStepInputs] = useState<Record<number, StepInput>>({});
-
   // A cold deep-link (or a stale list) may not have this call yet.
   useEffect(() => {
     if (!call && calls.length === 0 && !loading) {
       void refresh(false);
     }
   }, [call, calls.length, loading, refresh]);
-
-  // Seed the form once the call is available.
-  useEffect(() => {
-    if (!call) return;
-    setSubStatus(call.subStatus ?? '');
-    setSerialNumber(call.serialNumber ?? '');
-    setRemarks(call.remarks ?? '');
-    setCancelReason(call.cancelReason ?? '');
-    setServices(call.engineerServices?.length ? call.engineerServices : []);
-    setServiceImages(call.service_images ?? []);
-
-    const seededInputs: Record<number, StepInput> = {};
-    (call.stepResults ?? []).forEach((s) => {
-      seededInputs[s.order] = { notes: s.notes ?? '', amount: s.amount !== undefined ? String(s.amount) : '' };
-    });
-    setStepInputs(seededInputs);
-  }, [call?._id]);
-
-  useEffect(() => {
-    if (!call?.serviceType) {
-      setServiceSteps([]);
-      return;
-    }
-    let cancelled = false;
-    serviceTypesApi
-      .getStepsForServiceType(call.serviceType)
-      .then((steps) => {
-        if (!cancelled) setServiceSteps(steps);
-      })
-      .catch(() => {
-        if (!cancelled) setServiceSteps([]);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [call?.serviceType]);
-
-  const updateStepInput = (order: number, patch: Partial<StepInput>) => {
-    setStepInputs((prev) => ({ ...prev, [order]: { ...(prev[order] ?? { notes: '', amount: '' }), ...patch } }));
-  };
-
-  useEffect(() => {
-    let cancelled = false;
-    jobStatusesApi
-      .getSubStatusOptions()
-      .then((options: JobStatusOption[]) => {
-        if (!cancelled && options.length > 0) {
-          setSubStatusOptions(options.map((o) => o.name));
-        }
-      })
-      .catch(() => {
-        // Fallback list already set — this master is not critical enough to block the screen.
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const handlePhotosChange = (next: ServiceImage[]) => {
-    setServiceImages(next);
-    if (call) applyUpdate({ ...call, service_images: next });
-  };
-
-  const callCustomer = () => {
-    if (!call?.contactNumber) return;
-    void Linking.openURL(`tel:${call.contactNumber}`);
-  };
-
-  const handleSubmit = async () => {
-    if (!call) return;
-    setFormError(null);
-
-    if (!subStatus.trim()) {
-      setFormError('Select what happened on this visit.');
-      return;
-    }
-    if (isCancelLike(subStatus) && !cancelReason.trim()) {
-      setFormError('A reason is required when reporting a cancellation or refusal.');
-      return;
-    }
-    if (isCompletingLike(subStatus) && !call.checkOut) {
-      setFormError('Check out (GPS location) before marking this job complete.');
-      return;
-    }
-
-    const cleanServices = services
-      .filter((s) => s.serviceName.trim().length > 0)
-      .map((s) => ({ serviceName: s.serviceName.trim(), amount: Number(s.amount) || 0 }));
-    const total = cleanServices.reduce((sum, s) => sum + s.amount, 0);
-
-    setSubmitting(true);
-    try {
-      if (serviceSteps.length > 0) {
-        const steps = serviceSteps.map((s) => {
-          const input = stepInputs[s.order] ?? { notes: '', amount: '' };
-          return {
-            order: s.order,
-            label: s.label,
-            notes: input.notes.trim(),
-            amount: s.requiresAmount && input.amount ? Number(input.amount) : undefined,
-            completedAt: input.notes.trim() ? new Date().toISOString() : undefined,
-          };
-        });
-        await engineerCallsApi.updateSteps(call._id, steps);
-      }
-
-      const response = await engineerCallsApi.updateCall(call._id, {
-        subStatus: subStatus.trim(),
-        remarks: remarks.trim(),
-        serialNumber: serialNumber.trim(),
-        cancelReason: cancelReason.trim(),
-        engineerServices: cleanServices,
-        closerCode: String(total),
-      });
-      applyUpdate(response.call);
-      router.back();
-      // The summary tiles are server-computed counts, not derived from the
-      // list in memory — refresh them quietly now that a status changed.
-      void refresh(true);
-    } catch (error) {
-      const message = isNetworkError(error)
-        ? 'Could not reach the server. Your changes were not saved — try again once you have signal.'
-        : (serverMessage(error) ?? 'Could not save this update. Try again.');
-      setFormError(message);
-    } finally {
-      setSubmitting(false);
-    }
-  };
 
   if (!call) {
     return (
@@ -233,13 +65,18 @@ export default function CallDetailScreen() {
   }
 
   const locked = isLocked(call.jobStatus, call.subStatus);
+  const finished = isFinished(call);
+  const cancellationPending = call.cancellationRequest?.status === 'pending';
   const machine = [call.brandName, call.productsName].filter(Boolean).join(' · ');
+  const progress = stepProgress(call);
+  const live = currentStep(call);
+
+  const openStep = (step: JobStepDef) => {
+    router.push({ pathname: step.route as never, params: { callId: call._id } as never });
+  };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + spacing.md }]}>
         <Pressable onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back">
           <Text style={styles.backArrow}>←</Text>
@@ -255,10 +92,7 @@ export default function CallDetailScreen() {
         <StatusPill jobStatus={call.jobStatus} />
       </View>
 
-      <ScrollView
-        contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + spacing.xxxl }]}
-        keyboardShouldPersistTaps="handled"
-      >
+      <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + spacing.xxxl }]}>
         {/* Job summary — read-only */}
         <View style={styles.card}>
           {machine ? <Text style={[typography.bodyStrong, styles.machine]}>{machine}</Text> : null}
@@ -269,129 +103,148 @@ export default function CallDetailScreen() {
           <InfoRow label="Warranty" value={call.warrantyTerms} />
 
           {!locked ? (
-            <Pressable
+            <ActionRow
+              label="Show ID card"
+              icon="card"
               onPress={() => router.push({ pathname: '/id-card/[callId]', params: { callId: call._id } })}
-              accessibilityRole="button"
-              accessibilityLabel="Show ID card"
-              style={({ pressed }) => [styles.callRow, pressed && styles.callRowPressed]}
-            >
-              <Text style={[typography.bodyStrong, styles.callRowText]}>Show ID card</Text>
-              <View style={styles.callRowIcon}>
-                <Ionicons name="card" size={16} color={colors.textOnBrand} />
-              </View>
-            </Pressable>
+            />
           ) : null}
 
-          <Pressable
-            onPress={callCustomer}
-            accessibilityRole="button"
-            accessibilityLabel={`Call ${call.customerName}`}
-            style={({ pressed }) => [styles.callRow, pressed && styles.callRowPressed]}
-          >
-            <Text style={[typography.bodyStrong, styles.callRowText]}>Call {call.contactNumber}</Text>
-            <View style={styles.callRowIcon}>
-              <Ionicons name="call" size={16} color={colors.textOnBrand} />
-            </View>
-          </Pressable>
+          {!locked ? (
+            <ActionRow
+              label="Report status"
+              icon="flag"
+              onPress={() => router.push({ pathname: '/(tabs)/calls/status', params: { callId: call._id } })}
+            />
+          ) : null}
+
+          {canShowCustomerLocation(call) ? (
+            <ActionRow label="Show on map" icon="location" onPress={() => void openCustomerLocation(call)} />
+          ) : null}
+
+          {/* Customer contact disappears once the job is finished — the
+              engineer has no reason to hold the number afterwards. */}
+          {call.contactNumber && !finished ? (
+            <ActionRow
+              label={`Call ${call.contactNumber}`}
+              icon="call"
+              onPress={() => void Linking.openURL(`tel:${call.contactNumber}`)}
+            />
+          ) : null}
         </View>
 
-        {locked ? (
+        <OfficeNotesCard notes={call.engineerNotes ?? []} />
+
+        {!locked ? <CancellationCard call={call} onUpdated={applyUpdate} /> : null}
+
+        {cancellationPending ? (
           <Notice
             tone="info"
-            message="This job is marked done and is locked."
+            message="This job is locked while the office reviews your cancellation request."
+            action="They will approve it or send it back to you."
+          />
+        ) : locked ? (
+          <Notice
+            tone="info"
+            message={isClosed(call) ? 'This job is closed.' : 'This job is marked done and is locked.'}
             action="Contact the office if something needs to change."
           />
         ) : (
-          <>
-            <CheckInOutCard call={call} onUpdated={applyUpdate} />
+          <View style={styles.stepsBlock}>
+            <View style={styles.stepsHeader}>
+              <Text style={[typography.label, styles.stepsTitle]}>Steps</Text>
+              <Text style={[typography.caption, styles.stepsProgress]}>
+                {progress.done} of {progress.total} done
+              </Text>
+            </View>
 
-            {formError ? <Notice tone="error" message={formError} /> : null}
-
-            {!call.checkIn ? null : (
-            <>
-            <View style={styles.section}>
-              <Text style={[typography.label, styles.sectionLabel]}>Serial number</Text>
-              <TextField
-                label="Device serial number"
-                value={serialNumber}
-                onChangeText={setSerialNumber}
-                placeholder="Read from the back or bottom label"
-                autoCapitalize="characters"
-                autoCorrect={false}
+            {JOB_STEPS.map((step, index) => (
+              <StepRow
+                key={step.key}
+                index={index + 1}
+                step={step}
+                call={call}
+                isCurrent={step.key === live.key}
+                onPress={() => openStep(step)}
               />
-            </View>
-
-            <View style={styles.section}>
-              <SelectField
-                label="What happened on this visit"
-                value={subStatus}
-                options={subStatusOptions}
-                onChange={setSubStatus}
-                placeholder="Select an outcome…"
-              />
-            </View>
-
-            {isCancelLike(subStatus) ? (
-              <View style={styles.section}>
-                <TextField
-                  label="Reason"
-                  value={cancelReason}
-                  onChangeText={setCancelReason}
-                  placeholder="Why the customer refused, or why the job was cancelled"
-                  multiline
-                  numberOfLines={3}
-                />
-              </View>
-            ) : null}
-
-            <View style={styles.section}>
-              <Text style={[typography.label, styles.sectionLabel]}>Services & amount collected</Text>
-              <ServiceLineEditor value={services} onChange={setServices} />
-            </View>
-
-            <View style={styles.section}>
-              <Text style={[typography.label, styles.sectionLabel]}>Photos</Text>
-              <PhotoGrid callId={call._id} images={serviceImages} onImagesChange={handlePhotosChange} />
-            </View>
-
-            {serviceSteps.length > 0 ? (
-              <View style={styles.section}>
-                <Text style={[typography.label, styles.sectionLabel]}>Job steps</Text>
-                <StepChecklist
-                  steps={serviceSteps}
-                  values={stepInputs}
-                  onChange={updateStepInput}
-                  hasPhoto={serviceImages.length > 0}
-                />
-              </View>
-            ) : (
-              <View style={styles.section}>
-                <TextField
-                  label="Remarks"
-                  value={remarks}
-                  onChangeText={setRemarks}
-                  placeholder="What you found, what you did, anything the office should know"
-                  multiline
-                  numberOfLines={4}
-                />
-              </View>
-            )}
-
-            <Button
-              label="Save update"
-              loadingLabel="Saving…"
-              onPress={handleSubmit}
-              loading={submitting}
-              style={styles.submit}
-            />
-            </>
-            )}
-          </>
+            ))}
+          </View>
         )}
       </ScrollView>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
+
+const ActionRow: React.FC<{ label: string; icon: keyof typeof Ionicons.glyphMap; onPress: () => void }> = ({
+  label,
+  icon,
+  onPress,
+}) => (
+  <Pressable
+    onPress={onPress}
+    accessibilityRole="button"
+    accessibilityLabel={label}
+    style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
+  >
+    <Text style={[typography.bodyStrong, styles.actionRowText]}>{label}</Text>
+    <View style={styles.actionRowIcon}>
+      <Ionicons name={icon} size={16} color={colors.textOnBrand} />
+    </View>
+  </Pressable>
+);
+
+const StepRow: React.FC<{
+  index: number;
+  step: JobStepDef;
+  call: EngineerCall;
+  isCurrent: boolean;
+  onPress: () => void;
+}> = ({ index, step, call, isCurrent, onPress }) => {
+  const done = step.isDone(call);
+  const unlocked = isStepUnlocked(call, step.key);
+
+  return (
+    <Pressable
+      onPress={unlocked ? onPress : undefined}
+      disabled={!unlocked}
+      accessibilityRole="button"
+      accessibilityLabel={`${step.title}${done ? ', done' : unlocked ? '' : ', locked'}`}
+      accessibilityState={{ disabled: !unlocked }}
+      style={({ pressed }) => [
+        styles.stepRow,
+        isCurrent && styles.stepRowCurrent,
+        !unlocked && styles.stepRowLocked,
+        pressed && unlocked && styles.stepRowPressed,
+      ]}
+    >
+      <View style={[styles.stepBadge, done && styles.stepBadgeDone, isCurrent && styles.stepBadgeCurrent]}>
+        {done ? (
+          <Ionicons name="checkmark" size={15} color={colors.textOnBrand} />
+        ) : (
+          <Text style={[typography.caption, isCurrent ? styles.stepBadgeTextCurrent : styles.stepBadgeText]}>
+            {index}
+          </Text>
+        )}
+      </View>
+
+      <View style={styles.stepText}>
+        <Text style={[typography.bodyStrong, styles.stepTitle]} numberOfLines={1}>
+          {step.title}
+          {step.optional ? ' · optional' : ''}
+        </Text>
+        <Text style={[typography.caption, styles.stepHint]} numberOfLines={1}>
+          {step.hint}
+        </Text>
+      </View>
+
+      <Ionicons
+        name={unlocked ? 'chevron-forward' : 'lock-closed'}
+        size={16}
+        color={unlocked ? colors.textFaint : colors.border}
+      />
+    </Pressable>
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -406,6 +259,7 @@ const styles = StyleSheet.create({
   },
   mutedTitle: {
     color: colors.text,
+    textAlign: 'center',
   },
   mutedText: {
     color: colors.textMuted,
@@ -413,7 +267,7 @@ const styles = StyleSheet.create({
   },
   backButton: {
     marginTop: spacing.md,
-    minWidth: 160,
+    minWidth: 180,
   },
   header: {
     flexDirection: 'row',
@@ -432,9 +286,10 @@ const styles = StyleSheet.create({
   },
   headerText: {
     flex: 1,
+    gap: 2,
   },
   headerCallNumber: {
-    color: colors.textFaint,
+    color: colors.textMuted,
   },
   headerCustomer: {
     color: colors.text,
@@ -445,46 +300,105 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: colors.surface,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.borderSoft,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
-    gap: 2,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.xs,
+    gap: spacing.xs,
   },
   machine: {
     color: colors.text,
     marginBottom: spacing.xs,
   },
-  callRow: {
+  actionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: spacing.md,
-    paddingTop: spacing.md,
+    paddingVertical: spacing.md,
     borderTopWidth: 1,
     borderTopColor: colors.borderSoft,
   },
-  callRowPressed: {
+  actionRowPressed: {
     opacity: 0.7,
   },
-  callRowText: {
+  actionRowText: {
     color: colors.brand,
   },
-  callRowIcon: {
-    width: 32,
-    height: 32,
+  actionRowIcon: {
+    width: 34,
+    height: 34,
     borderRadius: radius.pill,
+    backgroundColor: colors.brand,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.brand,
   },
-  section: {
+  stepsBlock: {
     gap: spacing.sm,
   },
-  sectionLabel: {
+  stepsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  stepsTitle: {
     color: colors.textMuted,
   },
-  submit: {
-    marginTop: spacing.md,
+  stepsProgress: {
+    color: colors.textFaint,
+  },
+  stepRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  stepRowCurrent: {
+    borderColor: colors.brand,
+    borderWidth: 1.5,
+  },
+  stepRowLocked: {
+    opacity: 0.55,
+  },
+  stepRowPressed: {
+    opacity: 0.75,
+  },
+  stepBadge: {
+    width: 26,
+    height: 26,
+    borderRadius: radius.pill,
+    backgroundColor: colors.sunken,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepBadgeDone: {
+    backgroundColor: colors.success,
+  },
+  stepBadgeCurrent: {
+    backgroundColor: colors.brand,
+  },
+  stepBadgeText: {
+    color: colors.textMuted,
+    fontWeight: '700',
+  },
+  stepBadgeTextCurrent: {
+    color: colors.textOnBrand,
+    fontWeight: '700',
+  },
+  stepText: {
+    flex: 1,
+    gap: 1,
+  },
+  stepTitle: {
+    color: colors.text,
+  },
+  stepHint: {
+    color: colors.textMuted,
   },
 });

@@ -14,7 +14,7 @@ import { Button } from '@/components/common/Button';
 import { TextField } from '@/components/common/TextField';
 import { Notice } from '@/components/feedback/Notice';
 import { useAuth } from '@/context/AuthContext';
-import { AuthError } from '@/types/auth';
+import { AuthError, ENGINEER_TYPE_LABELS, SELECTABLE_ENGINEER_TYPES, type EngineerType } from '@/types/auth';
 import { colors, spacing, typography } from '@/theme';
 
 export default function RegisterScreen() {
@@ -33,6 +33,7 @@ export default function RegisterScreen() {
   const [pincode, setPincode] = useState('');
   const [route, setRoute] = useState('');
   const [yearsOfExperience, setYearsOfExperience] = useState('');
+  const [engineerType, setEngineerType] = useState<EngineerType>('freelance');
   const [consent, setConsent] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
@@ -64,6 +65,7 @@ export default function RegisterScreen() {
         email: email.trim() || undefined,
         password,
         route: route.trim() || undefined,
+        engineerType,
         yearsOfExperience: yearsOfExperience ? Number(yearsOfExperience) : undefined,
         addressLine1: addressLine1.trim() || undefined,
         city: city.trim() || undefined,
@@ -82,7 +84,11 @@ export default function RegisterScreen() {
   };
 
   return (
-    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView
+      style={styles.flex}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'android' ? insets.top : 0}
+    >
       <View style={[styles.header, { paddingTop: insets.top + spacing.md }]}>
         <Pressable onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back">
           <Text style={styles.backArrow}>←</Text>
@@ -135,6 +141,28 @@ export default function RegisterScreen() {
         </Section>
 
         <Section title="Work">
+          <View style={styles.typeField}>
+            <Text style={[typography.label, styles.typeLabel]}>I am applying as</Text>
+            <View style={styles.typeRow}>
+              {SELECTABLE_ENGINEER_TYPES.map((option) => {
+                const selected = engineerType === option;
+                return (
+                  <Pressable
+                    key={option}
+                    onPress={() => setEngineerType(option)}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected }}
+                    style={[styles.typeOption, selected && styles.typeOptionSelected]}
+                  >
+                    <Text style={[typography.body, selected ? styles.typeOptionTextSelected : styles.typeOptionText]}>
+                      {ENGINEER_TYPE_LABELS[option]}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+
           <TextField label="Preferred work area / route (optional)" value={route} onChangeText={setRoute} />
           <TextField
             label="Years of experience (optional)"
@@ -242,6 +270,37 @@ const styles = StyleSheet.create({
   },
   hint: {
     color: colors.textFaint,
+  },
+  typeField: {
+    gap: spacing.sm,
+  },
+  typeLabel: {
+    color: colors.textMuted,
+  },
+  typeRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  typeOption: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.sm,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  typeOptionSelected: {
+    borderColor: colors.brand,
+    backgroundColor: colors.brandWash,
+  },
+  typeOptionText: {
+    color: colors.textMuted,
+  },
+  typeOptionTextSelected: {
+    color: colors.brand,
+    fontWeight: '700',
   },
   consentRow: {
     flexDirection: 'row',

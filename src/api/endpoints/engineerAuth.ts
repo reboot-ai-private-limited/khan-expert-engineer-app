@@ -1,15 +1,27 @@
 import axios from 'axios';
 import { api, isNetworkError, serverMessage } from '@/api/client';
 import { env } from '@/config/env';
+
+/** Result of a cold-start token check — see validateSession below. */
+export interface SessionCheck {
+  /** False only when the server actively rejected the token. */
+  valid: boolean;
+  /** A refreshed profile when one came back; null means keep the cached one. */
+  profile: EngineerProfile | null;
+}
 import {
   AuthError,
   type AuthErrorCode,
+  type EngineerProfile,
   type LoginRequest,
   type LoginResponse,
   type RegisterRequest,
   type RegisterResponse,
   type RegistrationStatusResponse,
   type ResubmitRequest,
+  type ChangePasswordRequest,
+  type UpdateProfileRequest,
+  type UpdateProfileResponse,
 } from '@/types/auth';
 
 /**
@@ -94,33 +106,70 @@ export const engineerAuthApi = {
   },
 
   /**
-   * Confirm a stored token is still good.
+   * Confirm a stored token is still good, and hand back the server's own
+   * copy of the profile so fields added since the engineer last signed in
+   * (their engineer code, account type) appear without a re-login.
    *
-   * NOTE: this deliberately does NOT call GET /engineer-auth/profile.
-   * That endpoint is broken on the server — authMiddleware sets
-   * `req.user._id`, but the controller reads `req.user?.id`, so it calls
-   * findById(undefined) and 404s for every engineer. Until that is fixed
-   * backend-side, the cheapest authenticated call that genuinely works is
-   * the assigned-calls list, whose controller reads `req.user?.name`.
+   * GET /engineer-auth/profile used to 404 for every engineer —
+   * authMiddleware sets `req.user._id` but the controller read
+   * `req.user?.id`. That is fixed server-side now, so this is both the
+   * cheapest authenticated call and the one that returns the profile.
    *
-   * Returns true if the token is valid, false if it was rejected.
-   * Throws only when the server could not be reached, so an engineer
-   * opening the app offline keeps their session.
+   * `valid` is false only when the server actively rejected the token —
+   * a server-side failure keeps the session. `profile` is the refreshed
+   * copy when one came back, and null when the caller should keep the one
+   * it already has. Throws only when the server could not be reached, so
+   * an engineer opening the app offline keeps their session.
    */
-  async validateSession(): Promise<boolean> {
+  /** GET /api/engineer-auth/profile — the server's own copy, always fresh. */
+  async getProfile(): Promise<EngineerProfile> {
+    const { data } = await api.get<{ success: boolean; engineer: EngineerProfile }>('/engineer-auth/profile');
+    return data.engineer;
+  },
+
+  /**
+   * PUT /api/engineer-auth/profile — self-service edit, returns the saved
+   * profile so the caller can replace its cached copy rather than guessing
+   * what the server kept.
+   */
+  async updateProfile(payload: UpdateProfileRequest): Promise<EngineerProfile> {
     try {
-      await api.get('/engineer-calls', { params: { page: 1, limit: 1 } });
-      return true;
+      const { data } = await api.put<UpdateProfileResponse>('/engineer-auth/profile', payload);
+      return data.engineer;
+    } catch (error) {
+      if (isNetworkError(error)) {
+        throw new AuthError('network', friendlyMessage('network'), true);
+      }
+      throw new AuthError('server', serverMessage(error) ?? 'Could not save your profile. Try again.', true);
+    }
+  },
+
+  /** PUT /api/engineer-auth/password — current password required, see the controller. */
+  async changePassword(payload: ChangePasswordRequest): Promise<void> {
+    try {
+      await api.put('/engineer-auth/password', payload);
+    } catch (error) {
+      if (isNetworkError(error)) {
+        throw new AuthError('network', friendlyMessage('network'), true);
+      }
+      throw new AuthError('server', serverMessage(error) ?? 'Could not change your password. Try again.', true);
+    }
+  },
+
+  async validateSession(): Promise<SessionCheck> {
+    try {
+      const { data } = await api.get<{ success: boolean; engineer: EngineerProfile }>('/engineer-auth/profile');
+      return { valid: true, profile: data?.engineer ?? null };
     } catch (error) {
       if (isNetworkError(error)) {
         throw new AuthError('network', friendlyMessage('network'), true);
       }
 
       const status = axios.isAxiosError(error) ? error.response?.status : undefined;
-      if (status === 401 || status === 403) return false;
+      if (status === 401 || status === 403) return { valid: false, profile: null };
 
       // A 500 is the server's problem, not a bad token. Keep the session.
-      return true;
+      return { valid: true, profile: null };
     }
   },
 

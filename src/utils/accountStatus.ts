@@ -12,3 +12,19 @@ export const isAccountActive = (engineer: EngineerProfile | null): boolean => {
   if (!engineer) return false;
   return !engineer.accountStatus || engineer.accountStatus === 'active';
 };
+
+/**
+ * Whether this engineer may complete their application — add KYC
+ * documents and pick skills — even though they are not active yet.
+ *
+ * Without this, a self-registered engineer has no way to ever submit KYC:
+ * those screens live under `(tabs)/profile`, which used to be gated
+ * behind `isAccountActive`, and the pending-approval status screen had no
+ * route to them. `rejected`/`suspended`/`inactive` stay excluded — those
+ * are terminal or locked states, not "still onboarding".
+ */
+export const canCompleteApplication = (engineer: EngineerProfile | null): boolean => {
+  if (!engineer) return false;
+  if (isAccountActive(engineer)) return true;
+  return engineer.accountStatus === 'pending_approval' || engineer.accountStatus === 'changes_requested';
+};

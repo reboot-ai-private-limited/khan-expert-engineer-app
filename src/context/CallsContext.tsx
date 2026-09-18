@@ -3,6 +3,8 @@ import { engineerCallsApi } from '@/api/endpoints/engineerCalls';
 import { isNetworkError, serverMessage } from '@/api/client';
 import type { EngineerCall, EngineerCallSummary } from '@/types/call';
 
+const NO_CLOSED_CALLS: EngineerCall[] = [];
+
 const EMPTY_SUMMARY: EngineerCallSummary = {
   totalCount: 0,
   pendingCount: 0,
@@ -12,6 +14,12 @@ const EMPTY_SUMMARY: EngineerCallSummary = {
 
 interface CallsContextValue {
   calls: EngineerCall[];
+  /**
+   * Always empty. Closed jobs are the office's business once signed off —
+   * the engineer sees their work up to "completed", and no further.
+   * Kept on the context so the screens reading it need no special-casing.
+   */
+  closedCalls: EngineerCall[];
   summary: EngineerCallSummary;
   loading: boolean;
   refreshing: boolean;
@@ -33,6 +41,8 @@ const CallsContext = createContext<CallsContextValue | undefined>(undefined);
  */
 export const CallsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [calls, setCalls] = useState<EngineerCall[]>([]);
+  // Deliberately never populated — see the note on closedCalls above.
+  const closedCalls = NO_CLOSED_CALLS;
   const [summary, setSummary] = useState<EngineerCallSummary>(EMPTY_SUMMARY);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -46,6 +56,7 @@ export const CallsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const response = await engineerCallsApi.getAssignedCalls();
       setCalls(response.calls);
       setSummary(response.summary);
+
     } catch (error) {
       const message = isNetworkError(error)
         ? 'Could not reach the server. Pull down to try again once you have signal.'
@@ -68,8 +79,8 @@ export const CallsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, []);
 
   const value = useMemo<CallsContextValue>(
-    () => ({ calls, summary, loading, refreshing, errorMessage, refresh, getById, applyUpdate }),
-    [calls, summary, loading, refreshing, errorMessage, refresh, getById, applyUpdate]
+    () => ({ calls, closedCalls, summary, loading, refreshing, errorMessage, refresh, getById, applyUpdate }),
+    [calls, closedCalls, summary, loading, refreshing, errorMessage, refresh, getById, applyUpdate]
   );
 
   return <CallsContext.Provider value={value}>{children}</CallsContext.Provider>;

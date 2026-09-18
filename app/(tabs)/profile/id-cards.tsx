@@ -3,6 +3,7 @@ import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import { compressAsset } from '@/utils/imageCapture';
 import { Ionicons } from '@expo/vector-icons';
 import { idCardApi } from '@/api/endpoints/idCard';
 import { isNetworkError, serverMessage } from '@/api/client';
@@ -49,19 +50,20 @@ export default function IdCardsScreen() {
         : await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) return;
 
+    // Resized before encoding — a full-resolution base64 exhausts the heap
+    // and gets the app killed. See utils/imageCapture.ts.
     const result =
       source === 'camera'
-        ? await ImagePicker.launchCameraAsync({ base64: true, quality: IMAGE_QUALITY, mediaTypes: ['images'] })
-        : await ImagePicker.launchImageLibraryAsync({ base64: true, quality: IMAGE_QUALITY, mediaTypes: ['images'] });
+        ? await ImagePicker.launchCameraAsync({ quality: 1, mediaTypes: ['images'] })
+        : await ImagePicker.launchImageLibraryAsync({ quality: 1, mediaTypes: ['images'] });
 
     if (result.canceled) return;
     const asset = result.assets[0];
-    if (!asset.base64) return;
 
     setUploading(true);
     setError(null);
     try {
-      const url = await idCardApi.uploadIdPhoto(`data:${asset.mimeType ?? 'image/jpeg'};base64,${asset.base64}`);
+      const url = await idCardApi.uploadIdPhoto((await compressAsset(asset)).dataUri);
       setPhotoUrl(url);
     } catch (err) {
       setError(serverMessage(err) ?? 'Could not upload your photo.');

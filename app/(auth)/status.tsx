@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Linking, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 import { Button } from '@/components/common/Button';
 import { TextField } from '@/components/common/TextField';
 import { Notice } from '@/components/feedback/Notice';
@@ -121,6 +122,17 @@ export default function ApplicationStatusScreen() {
         {engineer?.email ? <Row label="Email" value={engineer.email} /> : null}
       </View>
 
+      {accountStatus === 'pending_approval' || accountStatus === 'changes_requested' ? (
+        <View style={styles.completeSection}>
+          <Text style={[typography.label, styles.completeLabel]}>Finish your application</Text>
+          <Text style={[typography.small, styles.completeHint]}>
+            Add your KYC documents and pick your skills so the office has everything it needs to approve you.
+          </Text>
+          <Button label="Add KYC documents" variant="secondary" onPress={() => router.push('/(tabs)/profile/kyc')} />
+          <Button label="Choose your skills" variant="secondary" onPress={() => router.push('/(tabs)/profile/skills')} />
+        </View>
+      ) : null}
+
       {accountStatus === 'changes_requested' && !editing ? (
         <Button label="Fix and resubmit" onPress={() => setEditing(true)} />
       ) : null}
@@ -216,6 +228,20 @@ const styles = StyleSheet.create({
   },
   rowValue: {
     color: colors.text,
+  },
+  completeSection: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    borderRadius: radius.md,
+    padding: spacing.lg,
+    gap: spacing.md,
+  },
+  completeLabel: {
+    color: colors.textMuted,
+  },
+  completeHint: {
+    color: colors.textMuted,
   },
   editForm: {
     gap: spacing.lg,

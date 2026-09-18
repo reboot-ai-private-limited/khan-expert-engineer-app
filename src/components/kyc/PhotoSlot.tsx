@@ -1,5 +1,6 @@
 import React from 'react';
 import * as ImagePicker from 'expo-image-picker';
+import { compressAsset } from '@/utils/imageCapture';
 import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, radius, spacing, typography } from '@/theme';
 
@@ -11,11 +12,6 @@ interface PhotoSlotProps {
 }
 
 const IMAGE_QUALITY = 0.6;
-
-const toDataUri = (asset: ImagePicker.ImagePickerAsset): string | null => {
-  if (!asset.base64) return null;
-  return `data:${asset.mimeType ?? 'image/jpeg'};base64,${asset.base64}`;
-};
 
 /** One document photo — camera or gallery, matching KYC capture conventions (gallery is fine for documents). */
 export const PhotoSlot: React.FC<PhotoSlotProps> = ({ label, value, onChange }) => {
@@ -29,14 +25,15 @@ export const PhotoSlot: React.FC<PhotoSlotProps> = ({ label, value, onChange }) 
       return;
     }
 
+    // Resized before encoding — a full-resolution base64 exhausts the heap
+    // and gets the app killed. See utils/imageCapture.ts.
     const result =
       source === 'camera'
-        ? await ImagePicker.launchCameraAsync({ base64: true, quality: IMAGE_QUALITY, mediaTypes: ['images'] })
-        : await ImagePicker.launchImageLibraryAsync({ base64: true, quality: IMAGE_QUALITY, mediaTypes: ['images'] });
+        ? await ImagePicker.launchCameraAsync({ quality: 1, mediaTypes: ['images'] })
+        : await ImagePicker.launchImageLibraryAsync({ quality: 1, mediaTypes: ['images'] });
 
     if (result.canceled) return;
-    const dataUri = toDataUri(result.assets[0]);
-    if (dataUri) onChange(dataUri);
+    onChange((await compressAsset(result.assets[0])).dataUri);
   };
 
   return (

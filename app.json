@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Khan Expert Engineer",
+    "name": "One Call Service",
     "slug": "khanexpert-engineer",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -8,11 +8,6 @@
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "icon": "./assets/images/icon.png",
-    "splash": {
-      "image": "./assets/images/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0B192C"
-    },
     "android": {
       "package": "in.khanexpert.engineer",
       "versionCode": 1,
@@ -30,16 +25,25 @@
       "expo-router",
       "expo-secure-store",
       [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 220,
+          "resizeMode": "contain",
+          "backgroundColor": "#0B192C"
+        }
+      ],
+      [
         "expo-image-picker",
         {
-          "photosPermission": "Khan Expert needs access to your photos so you can attach existing pictures to a job.",
-          "cameraPermission": "Khan Expert needs your camera to photograph completed work on a job."
+          "photosPermission": "One Call Service needs access to your photos so you can attach existing pictures to a job.",
+          "cameraPermission": "One Call Service needs your camera to photograph completed work on a job."
         }
       ],
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Khan Expert needs your location to record check-in and check-out at the job site."
+          "locationAlwaysAndWhenInUsePermission": "One Call Service needs your location to record check-in and check-out at the job site."
         }
       ]
     ],

@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/context/AuthContext';
 import { CallsProvider } from '@/context/CallsContext';
 import { TabBarButton } from '@/components/common/TabBarButton';
-import { isAccountActive } from '@/utils/accountStatus';
+import { canCompleteApplication } from '@/utils/accountStatus';
 import { colors, typography } from '@/theme';
 
 export default function TabsLayout() {
@@ -17,9 +17,11 @@ export default function TabsLayout() {
   if (status === 'unauthenticated') {
     return <Redirect href="/(auth)/login" />;
   }
-  // Not yet approved (or sent back for changes, or rejected) — the working
-  // app is not theirs to see yet.
-  if (!isAccountActive(engineer)) {
+  // Still onboarding (pending/changes-requested/approved) is let in far
+  // enough to reach Profile → KYC/skills, so they have some way to finish
+  // their application — the "My jobs" tab itself stays blocked below.
+  // Rejected/suspended/inactive get bounced straight to the status screen.
+  if (!canCompleteApplication(engineer)) {
     return <Redirect href="/(auth)/status" />;
   }
 

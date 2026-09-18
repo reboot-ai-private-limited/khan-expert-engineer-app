@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
+import { capturePhoto, pickPhotos } from '@/utils/imageCapture';
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { engineerCallsApi } from '@/api/endpoints/engineerCalls';
 import { isNetworkError, serverMessage } from '@/api/client';
@@ -14,27 +15,28 @@ interface PhotoGridProps {
 }
 
 const MAX_SELECTION = 5;
-/** Compressed well below the server's 15MB JSON limit, even a few at once. */
-const IMAGE_QUALITY = 0.5;
-
-const toDataUri = (asset: ImagePicker.ImagePickerAsset): string | null => {
-  if (!asset.base64) return null;
-  const mime = asset.mimeType ?? 'image/jpeg';
-  return `data:${mime};base64,${asset.base64}`;
-};
-
 export const PhotoGrid: React.FC<PhotoGridProps> = ({ callId, images, onImagesChange }) => {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const upload = async (assets: ImagePicker.ImagePickerAsset[]) => {
-    const dataUris = assets.map(toDataUri).filter((u): u is string => Boolean(u));
-    if (dataUris.length === 0) return;
+  /**
+   * Uploads one photo per request rather than all of them in a single body.
+   *
+   * Sending five at once meant five base64 strings concatenated into one
+   * JSON payload, which axios then copies again — tens of megabytes of peak
+   * allocation against a 384MB heap. One at a time keeps the peak flat, and
+   * a failure halfway through keeps the photos that already landed.
+   */
+  const upload = async (photos: { dataUri: string }[]) => {
+    if (photos.length === 0) return;
 
     setError(null);
     setUploading(true);
     try {
-      const merged = await engineerCallsApi.uploadServiceImages(callId, dataUris);
+      let merged = images;
+      for (const photo of photos) {
+        merged = await engineerCallsApi.uploadServiceImages(callId, [photo.dataUri]);
+      }
       onImagesChange(merged);
     } catch (err) {
       setError(
@@ -48,33 +50,20 @@ export const PhotoGrid: React.FC<PhotoGridProps> = ({ callId, images, onImagesCh
   };
 
   const takePhoto = async () => {
-    const permission = await ImagePicker.requestCameraPermissionsAsync();
-    if (!permission.granted) {
-      setError('Camera access is off for this app. Enable it in your phone settings to take a photo.');
-      return;
+    try {
+      const photo = await capturePhoto();
+      if (photo) await upload([photo]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not take that photo.');
     }
-    const result = await ImagePicker.launchCameraAsync({
-      base64: true,
-      quality: IMAGE_QUALITY,
-      mediaTypes: ['images'],
-    });
-    if (!result.canceled) await upload(result.assets);
   };
 
   const chooseFromLibrary = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      setError('Photo library access is off for this app. Enable it in your phone settings to add a photo.');
-      return;
+    try {
+      await upload(await pickPhotos(MAX_SELECTION));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not add those photos.');
     }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      base64: true,
-      quality: IMAGE_QUALITY,
-      mediaTypes: ['images'],
-      allowsMultipleSelection: true,
-      selectionLimit: MAX_SELECTION,
-    });
-    if (!result.canceled) await upload(result.assets);
   };
 
   return (

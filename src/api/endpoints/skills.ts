@@ -34,6 +34,22 @@ export const skillsApi = {
   },
 
   /**
+   * POST /api/engineer-auth/skill-certificate
+   *
+   * Uploads the certificate photo and hands back its URL — call this
+   * first, then pass the result into `request()` as `certificateUrl`.
+   */
+  async uploadCertificate(imageBase64: string): Promise<string> {
+    const { data } = await api.post<{ success: boolean; message?: string; url: string }>(
+      '/engineer-auth/skill-certificate',
+      { imageBase64 },
+      { timeout: 60000 }
+    );
+    if (!data?.success || !data.url) throw new Error(data?.message || 'Could not upload the certificate.');
+    return data.url;
+  },
+
+  /**
    * DELETE /api/engineer-auth/skills/:skillId
    *
    * A pending request is withdrawn outright. An approved skill is instead
