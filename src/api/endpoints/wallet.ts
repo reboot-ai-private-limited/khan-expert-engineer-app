@@ -1,5 +1,5 @@
 import { api } from '@/api/client';
-import type { WalletEntry, WalletRemark } from '@/types/wallet';
+import type { WalletEntry, WalletRemark, WalletRequest, WalletRequestCategory } from '@/types/wallet';
 
 export const walletApi = {
   /** GET /api/wallet/balance — the server derives this from the ledger; the app never computes it. */
@@ -55,5 +55,27 @@ export const walletApi = {
     );
     if (!data?.success || !data.entry) throw new Error(data?.message || 'Could not confirm receipt.');
     return data.entry;
+  },
+
+  /**
+   * POST /api/wallet/requests
+   *
+   * Ask the office to put money in the wallet — an advance, or a same-day
+   * reimbursement for lunch or transportation. Nothing moves until the
+   * office decides; see /wallet/requests for tracking the answer.
+   */
+  async requestPayment(category: WalletRequestCategory, amount: number, reason: string): Promise<WalletRequest> {
+    const { data } = await api.post<{ success: boolean; message?: string; request: WalletRequest }>(
+      '/wallet/requests',
+      { category, amount, reason }
+    );
+    if (!data?.success || !data.request) throw new Error(data?.message || 'Could not submit the request.');
+    return data.request;
+  },
+
+  /** GET /api/wallet/requests — this engineer's own requests, newest first. */
+  async getMyRequests(): Promise<WalletRequest[]> {
+    const { data } = await api.get<{ success: boolean; requests: WalletRequest[] }>('/wallet/requests');
+    return data?.requests ?? [];
   },
 };

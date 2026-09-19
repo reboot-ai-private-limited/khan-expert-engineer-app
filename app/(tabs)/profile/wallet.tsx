@@ -6,13 +6,18 @@ import QRCode from 'react-native-qrcode-svg';
 import { walletApi } from '@/api/endpoints/wallet';
 import { isNetworkError, serverMessage } from '@/api/client';
 import { Button } from '@/components/common/Button';
+import { SelectField } from '@/components/common/SelectField';
 import { TextField } from '@/components/common/TextField';
 import { Notice } from '@/components/feedback/Notice';
 import { colors, radius, spacing, typography } from '@/theme';
 import {
   WALLET_ENTRY_LABEL,
   WALLET_REMARK_LABEL,
+  WALLET_REQUEST_CATEGORIES,
+  WALLET_REQUEST_CATEGORY_LABEL,
   type WalletEntry,
+  type WalletRequest,
+  type WalletRequestCategory,
 } from '@/types/wallet';
 
 const formatMoney = (n: number) => `₹${Math.abs(Math.round(n)).toLocaleString('en-IN')}`;
@@ -22,6 +27,7 @@ export default function WalletScreen() {
 
   const [balance, setBalance] = useState<number | null>(null);
   const [entries, setEntries] = useState<WalletEntry[]>([]);
+  const [requests, setRequests] = useState<WalletRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -39,12 +45,25 @@ export default function WalletScreen() {
   const [qrUri, setQrUri] = useState<string | null>(null);
   const [qrLoading, setQrLoading] = useState(false);
 
+  const [requesting, setRequesting] = useState(false);
+  const [requestCategory, setRequestCategory] = useState<WalletRequestCategory>('advance');
+  const [requestAmount, setRequestAmount] = useState('');
+  const [requestReason, setRequestReason] = useState('');
+  const [requestBusy, setRequestBusy] = useState(false);
+  const [requestError, setRequestError] = useState<string | null>(null);
+  const [requestSuccess, setRequestSuccess] = useState(false);
+
   const load = useCallback(async () => {
     setLoadError(null);
     try {
-      const [bal, tx] = await Promise.all([walletApi.getBalance(), walletApi.getTransactions()]);
+      const [bal, tx, reqs] = await Promise.all([
+        walletApi.getBalance(),
+        walletApi.getTransactions(),
+        walletApi.getMyRequests(),
+      ]);
       setBalance(bal.balance);
       setEntries(tx);
+      setRequests(reqs);
     } catch (err) {
       setLoadError(isNetworkError(err) ? 'Could not reach the server. Try again once you have signal.' : (serverMessage(err) ?? 'Could not load your wallet.'));
     } finally {
@@ -133,6 +152,50 @@ export default function WalletScreen() {
     }
   };
 
+  const pendingRequests = requests.filter((r) => r.status === 'pending');
+  // Only the most recent few — a declined request is a one-time notice, not
+  // something worth scrolling past for weeks. Approved ones need no notice
+  // here at all: the ledger entry they became is right below in the
+  // transaction history.
+  const recentlyDeclined = requests.filter((r) => r.status === 'declined').slice(0, 3);
+
+  const openRequest = () => {
+    setRequestCategory('advance');
+    setRequestAmount('');
+    setRequestReason('');
+    setRequestError(null);
+    setRequestSuccess(false);
+    setRequesting(true);
+  };
+
+  const submitRequest = async () => {
+    setRequestError(null);
+    const amt = Number(requestAmount);
+    if (!amt || amt <= 0) {
+      setRequestError('Enter a valid amount.');
+      return;
+    }
+    if (!requestReason.trim()) {
+      setRequestError('Tell the office what this is for.');
+      return;
+    }
+
+    setRequestBusy(true);
+    try {
+      await walletApi.requestPayment(requestCategory, amt, requestReason.trim());
+      setRequestSuccess(true);
+      await load();
+    } catch (err) {
+      setRequestError(
+        isNetworkError(err)
+          ? 'Could not reach the server. Try again once you have signal.'
+          : (serverMessage(err) ?? 'Could not submit the request.')
+      );
+    } finally {
+      setRequestBusy(false);
+    }
+  };
+
   const owesCompany = balance !== null && balance < 0;
 
   return (
@@ -189,9 +252,12 @@ export default function WalletScreen() {
               </View>
             )}
 
-            {!settling ? (
-              <Button label="Settle" onPress={openSettle} variant="secondary" />
-            ) : (
+            {!settling && !requesting ? (
+              <View style={styles.settleActions}>
+                <Button label="Settle" onPress={openSettle} variant="secondary" style={styles.settleActionButton} />
+                <Button label="Request money" onPress={openRequest} variant="secondary" style={styles.settleActionButton} />
+              </View>
+            ) : settling ? (
               <View style={styles.settleBox}>
                 <Text style={[typography.bodyStrong, styles.settleTitle]}>Settle with the office</Text>
 
@@ -245,6 +311,86 @@ export default function WalletScreen() {
                     </View>
                   </>
                 )}
+              </View>
+            ) : (
+              <View style={styles.settleBox}>
+                <Text style={[typography.bodyStrong, styles.settleTitle]}>Request money from the office</Text>
+
+                {requestSuccess ? (
+                  <>
+                    <Notice tone="success" message="Request sent. The office will review it and let you know." />
+                    <Button label="Done" variant="secondary" onPress={() => setRequesting(false)} />
+                  </>
+                ) : (
+                  <>
+                    <SelectField
+                      label="What is this for?"
+                      value={WALLET_REQUEST_CATEGORY_LABEL[requestCategory]}
+                      options={WALLET_REQUEST_CATEGORIES.map((cat) => WALLET_REQUEST_CATEGORY_LABEL[cat])}
+                      onChange={(label) => {
+                        const match = WALLET_REQUEST_CATEGORIES.find((cat) => WALLET_REQUEST_CATEGORY_LABEL[cat] === label);
+                        if (match) setRequestCategory(match);
+                      }}
+                    />
+
+                    <TextField
+                      label="Amount (₹)"
+                      value={requestAmount}
+                      onChangeText={(t) => setRequestAmount(t.replace(/[^0-9]/g, ''))}
+                      keyboardType="number-pad"
+                    />
+
+                    <TextField
+                      label="Details"
+                      value={requestReason}
+                      onChangeText={setRequestReason}
+                      placeholder="e.g. Fuel for today's jobs"
+                      multiline
+                    />
+
+                    {requestError ? <Notice tone="error" message={requestError} /> : null}
+
+                    <View style={styles.settleActions}>
+                      <Button label="Cancel" variant="secondary" onPress={() => setRequesting(false)} style={styles.settleActionButton} />
+                      <Button
+                        label="Submit"
+                        loadingLabel="Submitting…"
+                        onPress={submitRequest}
+                        loading={requestBusy}
+                        style={styles.settleActionButton}
+                      />
+                    </View>
+                  </>
+                )}
+              </View>
+            )}
+
+            {pendingRequests.length > 0 && (
+              <View style={styles.section}>
+                <Text style={[typography.label, styles.sectionLabel]}>Your requests awaiting the office</Text>
+                {pendingRequests.map((r) => (
+                  <View key={r._id} style={styles.payoutRow}>
+                    <View style={styles.payoutInfo}>
+                      <Text style={[typography.bodyStrong, styles.payoutAmount]}>
+                        {WALLET_REQUEST_CATEGORY_LABEL[r.category]} · {formatMoney(r.amount)}
+                      </Text>
+                      <Text style={[typography.caption, styles.payoutNote]}>{r.reason}</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {recentlyDeclined.length > 0 && (
+              <View style={styles.section}>
+                <Text style={[typography.label, styles.sectionLabel]}>Declined requests</Text>
+                {recentlyDeclined.map((r) => (
+                  <Notice
+                    key={r._id}
+                    tone="warning"
+                    message={`${WALLET_REQUEST_CATEGORY_LABEL[r.category]} · ${formatMoney(r.amount)} — ${r.decisionNote || 'Declined by the office.'}`}
+                  />
+                ))}
               </View>
             )}
 

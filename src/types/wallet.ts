@@ -59,6 +59,44 @@ export interface WalletEntry {
   createdAt: string;
 }
 
+/**
+ * What an engineer is asking the office for, before any money has moved.
+ * Mirrors WalletRequestCategory in backend/src/models/walletRequestModel.ts.
+ */
+export type WalletRequestCategory = 'advance' | 'lunch' | 'transportation' | 'salary' | 'call_incentive';
+
+export const WALLET_REQUEST_CATEGORIES: WalletRequestCategory[] = [
+  'advance',
+  'lunch',
+  'transportation',
+  'salary',
+  'call_incentive',
+];
+
+export const WALLET_REQUEST_CATEGORY_LABEL: Record<WalletRequestCategory, string> = {
+  advance: 'Advance',
+  lunch: 'Lunch',
+  transportation: 'Transportation',
+  salary: 'Salary',
+  call_incentive: 'Call Incentive',
+};
+
+export type WalletRequestStatus = 'pending' | 'approved' | 'declined';
+
+export interface WalletRequest {
+  _id: string;
+  engineerId: string;
+  category: WalletRequestCategory;
+  amount: number;
+  reason: string;
+  status: WalletRequestStatus;
+  requestedBy: string;
+  requestedAt: string;
+  decidedBy?: string;
+  decidedAt?: string;
+  decisionNote?: string;
+}
+
 export const WALLET_ENTRY_LABEL: Record<WalletEntryType, string> = {
   cash_collected: 'Cash collected from customer',
   commission_earned: 'Commission earned',
