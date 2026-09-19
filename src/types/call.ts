@@ -41,19 +41,20 @@ export interface CustomerSignature {
 }
 
 /**
- * An engineer's request to cancel a job, and the office's answer.
+ * An engineer's request to be released from a call, and the office's
+ * answer — NOT a request to cancel the call itself; the ticket stays open.
  *
  * While 'pending' the job stays in the list but is locked — the server
- * refuses edits. On 'approved' the job's status becomes Cancelled, which
- * drops it out of the assigned list entirely, so the app only ever sees an
- * approved request in the brief window before the next refresh.
+ * refuses edits. On 'approved' the engineer is cleared back to Unassigned,
+ * which drops it out of the assigned list entirely, so the app only ever
+ * sees an approved request in the brief window before the next refresh.
  */
 /**
- * The engineer's travel to the job — what they rode, what it cost, and the
- * photo proving it. Recorded at check-in.
+ * The engineer's travel to the job — what they rode, the vehicle's car
+ * number, and the photo proving it. Recorded at check-in.
  *
- * The fare is a claim: it only reaches their wallet once the office
- * approves it, as a Transportation entry.
+ * It's a travel log, not a payment claim: the office reviews it, but no
+ * money moves either way.
  */
 export type RideVehicleType = '2W' | '3W' | '4W';
 
@@ -78,7 +79,7 @@ export const RIDE_VEHICLE_LABEL: Record<RideVehicleType, string> = {
 export interface Ride {
   vehicleType: RideVehicleType;
   mode: RideMode;
-  fare: number;
+  carNumber: string;
   photoUrl: string;
   photoPublicId?: string;
   recordedBy: string;

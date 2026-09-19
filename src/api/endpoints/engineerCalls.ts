@@ -169,7 +169,7 @@ export const engineerCallsApi = {
   ): Promise<EngineerCall> {
     const { data } = await api.post<CallResponse>(`/engineer-calls/${id}/check-in`, payload, { timeout: 60000 });
     if (!data?.success || !data.call) {
-      throw new Error(data?.message || 'Check-in did not complete.');
+      throw new Error(data?.message || 'Starting work did not complete.');
     }
     return data.call;
   },
@@ -183,7 +183,7 @@ export const engineerCallsApi = {
   async checkOut(id: string, payload: { latitude: number; longitude: number; accuracy?: number }): Promise<EngineerCall> {
     const { data } = await api.post<CallResponse>(`/engineer-calls/${id}/check-out`, payload);
     if (!data?.success || !data.call) {
-      throw new Error(data?.message || 'Check-out did not complete.');
+      throw new Error(data?.message || 'Checkout did not complete.');
     }
     return data.call;
   },
@@ -212,21 +212,21 @@ export const engineerCallsApi = {
   /**
    * POST /api/engineer-calls/:id/ride
    *
-   * The travel claim for this job. Sends the proof photo as a base64 data
+   * The travel log for this job. Sends the proof photo as a base64 data
    * URI, the same shape check-in uses for its selfie. Re-posting replaces a
-   * pending or declined claim; the server freezes an approved one.
+   * pending or declined log; the server freezes an approved one.
    */
   async recordRide(
     id: string,
     vehicleType: RideVehicleType,
     mode: RideMode,
-    fare: number,
+    carNumber: string,
     photoBase64: string
   ): Promise<EngineerCall> {
     const { data } = await api.post<CallResponse>(`/engineer-calls/${id}/ride`, {
       vehicleType,
       mode,
-      fare,
+      carNumber,
       photoBase64,
     });
     if (!data?.success || !data.call) {
