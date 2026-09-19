@@ -10,6 +10,8 @@ import { Button } from '@/components/common/Button';
 import { CollapsibleSection } from '@/components/common/CollapsibleSection';
 import { TextField } from '@/components/common/TextField';
 import { Notice } from '@/components/feedback/Notice';
+import { captureIntent } from '@/services/storage/captureIntent';
+import { usePendingCapture } from '@/hooks/usePendingCapture';
 import { uploadQueue } from '@/services/storage/uploadQueue';
 import { readAsDataUri } from '@/utils/localFile';
 import { colors, radius, spacing, typography } from '@/theme';
@@ -164,18 +166,53 @@ export const ProductVerificationCard: React.FC<ProductVerificationCardProps> = (
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [call._id]);
 
+  /**
+   * A photo taken while Android killed the app mid-capture (the camera
+   * activity being in front is exactly when the system reclaims memory by
+   * killing the app behind it — see captureIntent.ts). The photo itself was
+   * never lost; only the app's memory of what it was for. Without this it
+   * looks like taking the photo made the app "restart" and lose the shot.
+   */
+  usePendingCapture('job-photo', call._id, async (dataUri, detail) => {
+    const category = detail as ServiceImageCategory | undefined;
+    if (!category) return;
+    setPhotoError(null);
+    setPhotoBusy(category);
+    try {
+      const images = await engineerCallsApi.uploadCategorizedImage(call._id, dataUri, category);
+      onUpdated({ ...call, service_images: images });
+    } catch (err) {
+      setPhotoError(
+        isNetworkError(err)
+          ? 'Photo recovered. It will upload once you have signal — reopen this job to retry.'
+          : (serverMessage(err) ?? 'The photo was recovered but did not upload. Try taking it again.')
+      );
+    } finally {
+      setPhotoBusy(null);
+    }
+  });
+
   const capturePhoto = async (category: ServiceImageCategory) => {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (!permission.granted) {
       setPhotoError('Camera access is off for this app. Enable it in your phone settings.');
       return;
     }
+
+    // Recorded BEFORE the camera opens: if the app is killed while it is in
+    // front, this is the only record of what the photo was for.
+    await captureIntent.set({ purpose: 'job-photo', callId: call._id, detail: category });
+
     // Resized before encoding — a full-resolution base64 was exhausting the
     // heap and getting the app killed. See utils/imageCapture.ts.
     const result = await ImagePicker.launchCameraAsync({ quality: 1, mediaTypes: ['images'] });
-    if (result.canceled) return;
+    if (result.canceled) {
+      await captureIntent.clear();
+      return;
+    }
     const asset = result.assets[0];
     const dataUri = (await compressAsset(asset)).dataUri;
+    await captureIntent.clear();
 
     // Durably queued BEFORE the network call — if the app is killed while
     // uploading, this survives the restart and gets retried on next open,
@@ -275,7 +312,7 @@ export const ProductVerificationCard: React.FC<ProductVerificationCardProps> = (
       : 'Tap to photograph the unit and check warranty';
 
   return (
-    <CollapsibleSection title="Verify the product" summary={summary}>
+    <CollapsibleSection title="Check SR" summary={summary}>
       <Text style={[typography.caption, styles.subtitle]}>
         Photograph the unit and its nameplate, and correct any details below before starting work.
       </Text>

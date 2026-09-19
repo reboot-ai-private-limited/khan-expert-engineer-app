@@ -23,12 +23,22 @@ export type CapturePurpose =
   | 'ride-proof'
   | 'part-bill'
   | 'job-photo'
-  | 'product-video';
+  | 'product-video'
+  | 'kyc-photo'
+  | 'id-card-photo'
+  | 'skill-certificate';
 
 export interface CaptureIntent {
   purpose: CapturePurpose;
+  /**
+   * Scopes the intent to one screen instance. For a job-scoped capture this
+   * is the call's `_id`; for a profile-level one (KYC, ID card, a skill
+   * certificate) there is no call, so the engineer's own `_id` is used
+   * instead — it only needs to be a stable value the recovering screen
+   * already has on hand.
+   */
   callId: string;
-  /** Extra context the handler needs, e.g. the product photo category. */
+  /** Extra context the handler needs, e.g. the product photo category or KYC slot. */
   detail?: string;
   startedAt: string;
 }
