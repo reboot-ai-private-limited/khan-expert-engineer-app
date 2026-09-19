@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
+  Image,
   Keyboard,
   KeyboardAvoidingView,
   Linking,
@@ -112,9 +113,12 @@ export default function LoginScreen() {
         <Pressable style={styles.inner} onPress={Keyboard.dismiss} accessible={false}>
           {/* Identity */}
           <View style={styles.header}>
-            <View style={styles.mark}>
-              <Text style={styles.markText}>KE</Text>
-            </View>
+            <Image
+              source={require('../../assets/images/logo-source.png')}
+              style={styles.mark}
+              resizeMode="contain"
+              accessibilityLabel="Khan Expert Technology"
+            />
             <Text style={[typography.display, styles.title]}>Field Engineer</Text>
             <Text style={[typography.body, styles.subtitle]}>
               Sign in to see the jobs assigned to you.
@@ -238,18 +242,10 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   mark: {
-    width: 56,
-    height: 56,
+    width: 88,
+    height: 88,
     borderRadius: radius.lg,
-    backgroundColor: colors.brand,
-    alignItems: 'center',
-    justifyContent: 'center',
     marginBottom: spacing.md,
-  },
-  markText: {
-    ...typography.title,
-    color: colors.textOnBrand,
-    letterSpacing: 0.5,
   },
   title: {
     color: colors.text,

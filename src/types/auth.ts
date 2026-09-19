@@ -20,7 +20,7 @@ export type EngineerType = 'in_house' | 'freelance' | 'service_center';
 export const ENGINEER_TYPE_LABELS: Record<EngineerType, string> = {
   in_house: 'Company engineer',
   freelance: 'Freelance',
-  service_center: 'Service centre',
+  service_center: 'Service center',
 };
 
 /** The two an applicant may choose during registration. */

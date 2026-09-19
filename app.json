@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "One Call Service",
+    "name": "Tech Lead Engineer App",
     "slug": "khanexpert-engineer",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -36,14 +36,14 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "One Call Service needs access to your photos so you can attach existing pictures to a job.",
-          "cameraPermission": "One Call Service needs your camera to photograph completed work on a job."
+          "photosPermission": "Tech Lead Engineer App needs access to your photos so you can attach existing pictures to a job.",
+          "cameraPermission": "Tech Lead Engineer App needs your camera to photograph completed work on a job."
         }
       ],
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "One Call Service needs your location to record check-in and check-out at the job site."
+          "locationAlwaysAndWhenInUsePermission": "Tech Lead Engineer App needs your location to record check-in and check-out at the job site."
         }
       ]
     ],
