@@ -54,14 +54,14 @@ export const JOB_STEPS: JobStepDef[] = [
   },
   {
     key: 'check-in',
-    title: 'Check in',
+    title: 'Start work',
     hint: 'Selfie and location, to start the job',
     route: '/(tabs)/calls/check-in',
     isDone: (call) => Boolean(call.checkIn),
   },
   {
     key: 'product',
-    title: 'Verify the product',
+    title: 'Check SR',
     hint: 'Photograph the unit and confirm its warranty',
     route: '/(tabs)/calls/product',
     isDone: (call) => Boolean(call.warrantyStatus),
@@ -84,10 +84,10 @@ export const JOB_STEPS: JobStepDef[] = [
   {
     key: 'photos',
     title: 'Photos',
-    hint: 'Evidence of the work, before and after',
+    hint: 'Evidence of the work, before and after — photos or a short video',
     route: '/(tabs)/calls/photos',
     optional: true,
-    isDone: (call) => (call.service_images ?? []).length > 0,
+    isDone: (call) => (call.service_images ?? []).length > 0 || (call.service_videos ?? []).length > 0,
   },
   {
     key: 'charges',
@@ -112,7 +112,7 @@ export const JOB_STEPS: JobStepDef[] = [
   },
   {
     key: 'check-out',
-    title: 'Check out',
+    title: 'Checkout',
     hint: 'Location, to close out the visit',
     route: '/(tabs)/calls/check-out',
     isDone: (call) => Boolean(call.checkOut),

@@ -131,7 +131,7 @@ const WorkBody: React.FC<{ call: EngineerCall; onUpdated: (c: EngineerCall) => v
       )}
 
       {/* Only offered when the office has not set it. The full set of
-          identity fields, locked or not, lives on the Verify the product
+          identity fields, locked or not, lives on the Check SR
           step next to the nameplate photo. */}
       {isOfficeSet(call, 'serialNumber') ? null : (
         <TextField
