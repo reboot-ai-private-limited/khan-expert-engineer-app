@@ -110,6 +110,10 @@ export interface RegisterRequest {
   district?: string;
   state?: string;
   pincode?: string;
+  /** Where a bank-transfer payout goes, with the branch code below. */
+  bankAccountNumber?: string;
+  /** e.g. `SBIN0001234`. Sent uppercase; the server uppercases it again. */
+  bankIfscCode?: string;
   skillIds?: string[];
   engineerType?: EngineerType;
 }

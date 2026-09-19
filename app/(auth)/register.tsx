@@ -33,6 +33,8 @@ export default function RegisterScreen() {
   const [pincode, setPincode] = useState('');
   const [route, setRoute] = useState('');
   const [yearsOfExperience, setYearsOfExperience] = useState('');
+  const [bankAccountNumber, setBankAccountNumber] = useState('');
+  const [bankIfscCode, setBankIfscCode] = useState('');
   const [engineerType, setEngineerType] = useState<EngineerType>('freelance');
   const [consent, setConsent] = useState(false);
 
@@ -72,6 +74,8 @@ export default function RegisterScreen() {
         district: district.trim() || undefined,
         state: state.trim() || undefined,
         pincode: pincode.trim() || undefined,
+        bankAccountNumber: bankAccountNumber.trim() || undefined,
+        bankIfscCode: bankIfscCode.trim() || undefined,
       });
       // AuthContext flips to 'authenticated'; the (auth) layout routes a
       // pending account straight to /status — no manual navigation here.
@@ -173,6 +177,24 @@ export default function RegisterScreen() {
           <Text style={[typography.caption, styles.hint]}>
             You can pick your skills from your profile once your application is approved.
           </Text>
+        </Section>
+
+        <Section title="Bank details">
+          <TextField
+            label="Bank account number (optional)"
+            value={bankAccountNumber}
+            onChangeText={(t) => setBankAccountNumber(t.replace(/[^0-9]/g, ''))}
+            keyboardType="number-pad"
+            placeholder="For paying you by bank transfer"
+          />
+          <TextField
+            label="IFSC code (optional)"
+            value={bankIfscCode}
+            onChangeText={(t) => setBankIfscCode(t.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 11))}
+            autoCapitalize="characters"
+            autoCorrect={false}
+            placeholder="e.g. SBIN0001234"
+          />
         </Section>
 
         <Section title="Set a password">
