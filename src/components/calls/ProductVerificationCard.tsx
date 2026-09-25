@@ -10,8 +10,11 @@ import { Button } from '@/components/common/Button';
 import { CollapsibleSection } from '@/components/common/CollapsibleSection';
 import { TextField } from '@/components/common/TextField';
 import { Notice } from '@/components/feedback/Notice';
+import { captureIntent } from '@/services/storage/captureIntent';
+import { usePendingCapture } from '@/hooks/usePendingCapture';
 import { uploadQueue } from '@/services/storage/uploadQueue';
 import { readAsDataUri } from '@/utils/localFile';
+import { parseTypedDate, toTypedDate } from '@/utils/dateInput';
 import { colors, radius, spacing, typography } from '@/theme';
 import type { EngineerCall, ServiceImageCategory, WarrantyStatus } from '@/types/call';
 
@@ -63,9 +66,11 @@ const PhotoSlot: React.FC<{
   label: string;
   required?: boolean;
   existingUrl?: string;
+  /** A private photo (the bill) is saved but has no public link to preview. */
+  savedPrivately?: boolean;
   busy: boolean;
   onCapture: () => void;
-}> = ({ label, required, existingUrl, busy, onCapture }) => (
+}> = ({ label, required, existingUrl, savedPrivately, busy, onCapture }) => (
   <View style={styles.photoSlot}>
     <Text style={[typography.caption, styles.photoLabel]}>
       {label}
@@ -75,7 +80,9 @@ const PhotoSlot: React.FC<{
       <Image source={{ uri: existingUrl }} style={styles.photoPreview} />
     ) : (
       <View style={styles.photoPlaceholder}>
-        <Text style={[typography.caption, styles.photoPlaceholderText]}>Not captured</Text>
+        <Text style={[typography.caption, styles.photoPlaceholderText]}>
+          {savedPrivately ? '✓ Saved (kept private)' : 'Not captured'}
+        </Text>
       </View>
     )}
     <Pressable
@@ -86,7 +93,7 @@ const PhotoSlot: React.FC<{
       {busy ? (
         <ActivityIndicator size="small" color={colors.brand} />
       ) : (
-        <Text style={[typography.caption, styles.photoButtonText]}>{existingUrl ? 'Retake' : 'Take photo'}</Text>
+        <Text style={[typography.caption, styles.photoButtonText]}>{existingUrl || savedPrivately ? 'Retake' : 'Take photo'}</Text>
       )}
     </Pressable>
   </View>
@@ -97,6 +104,21 @@ const WARRANTY_LABEL: Record<WarrantyStatus, string> = {
   out_of_warranty: 'Out of warranty — chargeable',
   disputed: 'Disputed — office will resolve',
   extended: 'Extended / AMC cover applies',
+};
+
+/** Why the check came out the way it did — the engineer should never have to guess. */
+const warrantyReason = (call: EngineerCall): string => {
+  const day = (iso: string) => new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+  if (call.warrantyStatus === 'disputed') return '';
+  if (call.warrantyValidUntil) {
+    return call.warrantyStatus === 'in_warranty' || call.warrantyStatus === 'extended'
+      ? `Covered until ${day(call.warrantyValidUntil)}`
+      : `Warranty ended on ${day(call.warrantyValidUntil)}`;
+  }
+  if (/out\s*of\s*warranty/i.test(call.warrantyTerms || '') || call.warrantyYears === 0) {
+    return 'The office booked this job as out of warranty';
+  }
+  return call.warrantyStatus === 'out_of_warranty' ? 'No purchase bill — a bill is needed for warranty' : '';
 };
 
 const WARRANTY_TONE: Record<WarrantyStatus, 'success' | 'warning' | 'error'> = {
@@ -128,10 +150,12 @@ export const ProductVerificationCard: React.FC<ProductVerificationCardProps> = (
   const [photoError, setPhotoError] = useState<string | null>(null);
 
   const [hasBill, setHasBill] = useState<boolean | null>(null);
-  const [dateOfPurchase, setDateOfPurchase] = useState(call.dateofPurchase ? call.dateofPurchase.slice(0, 10) : '');
+  const [dateOfPurchase, setDateOfPurchase] = useState(call.dateofPurchase ? toTypedDate(call.dateofPurchase.slice(0, 10)) : '');
   const [billNumber, setBillNumber] = useState(call.billNumber ?? '');
   const [dealerName, setDealerName] = useState(call.dealerName ?? '');
   const [warrantyBusy, setWarrantyBusy] = useState(false);
+  /** Reopens the bill form after a result is saved — a wrong date or a bill found later. */
+  const [recheckingWarranty, setRecheckingWarranty] = useState(false);
   const [warrantyError, setWarrantyError] = useState<string | null>(null);
 
   const imageOf = (category: ServiceImageCategory) =>
@@ -141,20 +165,28 @@ export const ProductVerificationCard: React.FC<ProductVerificationCardProps> = (
    * Retries anything queued for this job — a photo captured last session
    * whose upload never finished because the app was killed mid-request.
    * Runs quietly on mount; a queued item that still can't upload (still
-   * offline, or the cached file is gone) just stays queued for next time.
+   * offline) stays queued for next time; one whose cached file is gone is dropped.
    */
   useEffect(() => {
     let cancelled = false;
     (async () => {
       const pending = await uploadQueue.getForCall(call._id);
       for (const item of pending) {
+        let dataUri: string;
         try {
-          const dataUri = await readAsDataUri(item.localUri, item.mimeType);
+          dataUri = await readAsDataUri(item.localUri, item.mimeType);
+        } catch {
+          // The cached file is gone (the phone cleared its cache). It can
+          // never upload, so drop it rather than retrying it forever.
+          await uploadQueue.remove(item.id);
+          continue;
+        }
+        try {
           const images = await engineerCallsApi.uploadCategorizedImage(call._id, dataUri, item.category);
           if (!cancelled) onUpdated({ ...call, service_images: images });
           await uploadQueue.remove(item.id);
         } catch {
-          // Left queued — retried again next time this screen opens.
+          // Offline or a server hiccup — left queued, retried next time this screen opens.
         }
       }
     })();
@@ -164,18 +196,53 @@ export const ProductVerificationCard: React.FC<ProductVerificationCardProps> = (
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [call._id]);
 
+  /**
+   * A photo taken while Android killed the app mid-capture (the camera
+   * activity being in front is exactly when the system reclaims memory by
+   * killing the app behind it — see captureIntent.ts). The photo itself was
+   * never lost; only the app's memory of what it was for. Without this it
+   * looks like taking the photo made the app "restart" and lose the shot.
+   */
+  usePendingCapture('job-photo', call._id, async (dataUri, detail) => {
+    const category = detail as ServiceImageCategory | undefined;
+    if (!category) return;
+    setPhotoError(null);
+    setPhotoBusy(category);
+    try {
+      const images = await engineerCallsApi.uploadCategorizedImage(call._id, dataUri, category);
+      onUpdated({ ...call, service_images: images });
+    } catch (err) {
+      setPhotoError(
+        isNetworkError(err)
+          ? 'Photo recovered. It will upload once you have signal — reopen this job to retry.'
+          : (serverMessage(err) ?? 'The photo was recovered but did not upload. Try taking it again.')
+      );
+    } finally {
+      setPhotoBusy(null);
+    }
+  });
+
   const capturePhoto = async (category: ServiceImageCategory) => {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (!permission.granted) {
       setPhotoError('Camera access is off for this app. Enable it in your phone settings.');
       return;
     }
+
+    // Recorded BEFORE the camera opens: if the app is killed while it is in
+    // front, this is the only record of what the photo was for.
+    await captureIntent.set({ purpose: 'job-photo', callId: call._id, detail: category });
+
     // Resized before encoding — a full-resolution base64 was exhausting the
     // heap and getting the app killed. See utils/imageCapture.ts.
     const result = await ImagePicker.launchCameraAsync({ quality: 1, mediaTypes: ['images'] });
-    if (result.canceled) return;
+    if (result.canceled) {
+      await captureIntent.clear();
+      return;
+    }
     const asset = result.assets[0];
     const dataUri = (await compressAsset(asset)).dataUri;
+    await captureIntent.clear();
 
     // Durably queued BEFORE the network call — if the app is killed while
     // uploading, this survives the restart and gets retried on next open,
@@ -246,17 +313,29 @@ export const ProductVerificationCard: React.FC<ProductVerificationCardProps> = (
       setWarrantyError('Date of purchase is required when a bill is available.');
       return;
     }
+    // Read as DD/MM/YYYY (or YYYY-MM-DD) and sent as YYYY-MM-DD — never left
+    // to the server to guess the order.
+    const purchaseIso = hasBill ? parseTypedDate(dateOfPurchase) : null;
+    if (hasBill && !purchaseIso) {
+      setWarrantyError('Enter the purchase date as DD/MM/YYYY, e.g. 28/02/2025.');
+      return;
+    }
+    if (purchaseIso && new Date(`${purchaseIso}T00:00:00`) > new Date()) {
+      setWarrantyError('The purchase date cannot be in the future.');
+      return;
+    }
 
     setWarrantyError(null);
     setWarrantyBusy(true);
     try {
       const { call: updated } = await engineerCallsApi.submitWarrantyCheck(call._id, {
         hasBill,
-        dateOfPurchase: hasBill ? dateOfPurchase.trim() : undefined,
+        dateOfPurchase: purchaseIso ?? undefined,
         billNumber: hasBill ? billNumber.trim() : undefined,
         dealerName: hasBill ? dealerName.trim() : undefined,
       });
       onUpdated(updated);
+      setRecheckingWarranty(false);
     } catch (err) {
       setWarrantyError(isNetworkError(err) ? 'Could not reach the server. Try again once you have signal.' : (serverMessage(err) ?? 'Could not record the warranty check.'));
     } finally {
@@ -275,7 +354,7 @@ export const ProductVerificationCard: React.FC<ProductVerificationCardProps> = (
       : 'Tap to photograph the unit and check warranty';
 
   return (
-    <CollapsibleSection title="Verify the product" summary={summary}>
+    <CollapsibleSection title="Check SR" summary={summary}>
       <Text style={[typography.caption, styles.subtitle]}>
         Photograph the unit and its nameplate, and correct any details below before starting work.
       </Text>
@@ -306,12 +385,25 @@ export const ProductVerificationCard: React.FC<ProductVerificationCardProps> = (
 
       <Text style={[typography.bodyStrong, styles.title]}>Warranty</Text>
 
-      {call.warrantyStatus ? (
+      {call.warrantyStatus && !recheckingWarranty ? (
+        <>
         <Notice
           tone={WARRANTY_TONE[call.warrantyStatus]}
           message={WARRANTY_LABEL[call.warrantyStatus]}
-          action={call.warrantyCheckedAt ? `Checked ${new Date(call.warrantyCheckedAt).toLocaleString()}` : undefined}
+          action={[warrantyReason(call), call.warrantyCheckedAt ? `Checked ${new Date(call.warrantyCheckedAt).toLocaleString()}` : '']
+            .filter(Boolean)
+            .join(' · ') || undefined}
         />
+          <Button
+            label="Check again"
+            variant="ghost"
+            onPress={() => {
+              setHasBill(null);
+              setWarrantyError(null);
+              setRecheckingWarranty(true);
+            }}
+          />
+        </>
       ) : (
         <>
           <Text style={[typography.caption, styles.subtitle]}>
@@ -335,8 +427,8 @@ export const ProductVerificationCard: React.FC<ProductVerificationCardProps> = (
 
           {hasBill ? (
             <>
-              <PhotoSlot label="Purchase bill" existingUrl={billPhoto?.secure_url} busy={photoBusy === 'bill'} onCapture={() => capturePhoto('bill')} />
-              <TextField label="Date of purchase (YYYY-MM-DD)" value={dateOfPurchase} onChangeText={setDateOfPurchase} placeholder="2025-01-15" keyboardType="numbers-and-punctuation" />
+              <PhotoSlot label="Purchase bill" existingUrl={billPhoto?.secure_url || undefined} savedPrivately={Boolean(billPhoto)} busy={photoBusy === 'bill'} onCapture={() => capturePhoto('bill')} />
+              <TextField label="Date of purchase (DD/MM/YYYY)" value={dateOfPurchase} onChangeText={setDateOfPurchase} placeholder="28/02/2025" keyboardType="numbers-and-punctuation" />
               <TextField label="Bill number" value={billNumber} onChangeText={setBillNumber} />
               <TextField label="Dealer / seller name" value={dealerName} onChangeText={setDealerName} />
             </>
@@ -347,6 +439,9 @@ export const ProductVerificationCard: React.FC<ProductVerificationCardProps> = (
               {warrantyError ? <Notice tone="error" message={warrantyError} /> : null}
               <Button label="Submit warranty check" loadingLabel="Checking…" onPress={submitWarranty} loading={warrantyBusy} />
             </>
+          ) : null}
+          {recheckingWarranty ? (
+            <Button label="Cancel — keep the current result" variant="ghost" onPress={() => setRecheckingWarranty(false)} />
           ) : null}
         </>
       )}

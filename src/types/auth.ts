@@ -20,7 +20,7 @@ export type EngineerType = 'in_house' | 'freelance' | 'service_center';
 export const ENGINEER_TYPE_LABELS: Record<EngineerType, string> = {
   in_house: 'Company engineer',
   freelance: 'Freelance',
-  service_center: 'Service centre',
+  service_center: 'Service center',
 };
 
 /** The two an applicant may choose during registration. */
@@ -48,6 +48,13 @@ export interface EngineerProfile {
   route?: string;
   yearsOfExperience?: number;
   address?: EngineerAddress;
+  bankName?: string;
+  bankAccountNumber?: string;
+  bankIfscCode?: string;
+  /** GST registration number. Only meaningful for a 'service_center' engineerType. */
+  gstin?: string;
+  /** Business name, only for a 'service_center' engineerType. */
+  serviceCenterName?: string;
   /** The rejection reason, or what to fix for a changes-requested decision. */
   reviewNote?: string;
 }
@@ -68,6 +75,11 @@ export interface UpdateProfileRequest {
   district?: string;
   state?: string;
   pincode?: string;
+  bankName?: string;
+  bankAccountNumber?: string;
+  bankIfscCode?: string;
+  gstin?: string;
+  serviceCenterName?: string;
   engineerType?: EngineerType;
 }
 
@@ -110,6 +122,15 @@ export interface RegisterRequest {
   district?: string;
   state?: string;
   pincode?: string;
+  bankName?: string;
+  /** Where a bank-transfer payout goes, with the branch code below. */
+  bankAccountNumber?: string;
+  /** e.g. `SBIN0001234`. Sent uppercase; the server uppercases it again. */
+  bankIfscCode?: string;
+  /** Required by the server when engineerType is 'service_center'. */
+  gstin?: string;
+  /** Required by the server when engineerType is 'service_center'. */
+  serviceCenterName?: string;
   skillIds?: string[];
   engineerType?: EngineerType;
 }
@@ -143,6 +164,11 @@ export interface RegistrationStatusResponse {
       state?: string;
       pincode?: string;
     };
+    bankName?: string;
+    bankAccountNumber?: string;
+    bankIfscCode?: string;
+    gstin?: string;
+    serviceCenterName?: string;
   };
 }
 

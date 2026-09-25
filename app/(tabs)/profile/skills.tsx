@@ -14,6 +14,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { compressAsset } from '@/utils/imageCapture';
 import { skillsApi } from '@/api/endpoints/skills';
 import { isNetworkError, serverMessage } from '@/api/client';
+import { captureIntent } from '@/services/storage/captureIntent';
+import { usePendingCapture } from '@/hooks/usePendingCapture';
 import { Notice } from '@/components/feedback/Notice';
 import { colors, radius, spacing, typography } from '@/theme';
 import type { EngineerSkillEntry, EngineerSkillStatus, Skill, SkillGroup } from '@/types/skill';
@@ -83,6 +85,25 @@ export default function MySkillsScreen() {
     [catalog, mineBySkillId]
   );
 
+  // A certificate photo taken while Android killed the app mid-capture — the
+  // camera activity being in front is exactly when the system reclaims
+  // memory by killing the app behind it. Without this the photo is still
+  // taken, but the app has forgotten which skill it was for, and it looks
+  // like taking the photo made the app "restart" and lose the shot.
+  usePendingCapture('skill-certificate', 'skill-certificate', async (dataUri, skillId) => {
+    if (!skillId) return;
+    setBusySkillId(skillId);
+    try {
+      const certificateUrl = await skillsApi.uploadCertificate(dataUri);
+      const next = await skillsApi.request(skillId, certificateUrl);
+      setMine(next);
+    } catch (error) {
+      Alert.alert('Could not request this skill', serverMessage(error) ?? (error as Error).message);
+    } finally {
+      setBusySkillId(null);
+    }
+  });
+
   const request = async (skill: Skill) => {
     if (skill.requiresCertification) {
       Alert.alert(
@@ -118,12 +139,20 @@ export default function MySkillsScreen() {
       return;
     }
 
+    // Recorded BEFORE the camera opens: if the app is killed while it is in
+    // front, this is the only record of which skill the photo was for.
+    if (source === 'camera') {
+      await captureIntent.set({ purpose: 'skill-certificate', callId: 'skill-certificate', detail: skill._id });
+    }
+
     // Resized before encoding — a full-resolution base64 exhausts the heap
     // and gets the app killed. See utils/imageCapture.ts.
     const result =
       source === 'camera'
         ? await ImagePicker.launchCameraAsync({ quality: 1, mediaTypes: ['images'] })
         : await ImagePicker.launchImageLibraryAsync({ quality: 1, mediaTypes: ['images'] });
+
+    if (source === 'camera') await captureIntent.clear();
     if (result.canceled) return;
     const asset = result.assets[0];
 

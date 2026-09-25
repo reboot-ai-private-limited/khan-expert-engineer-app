@@ -1,9 +1,8 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { engineerCallsApi } from '@/api/endpoints/engineerCalls';
 import { isNetworkError, serverMessage } from '@/api/client';
+import { isClosed } from '@/utils/callStatus';
 import type { EngineerCall, EngineerCallSummary } from '@/types/call';
-
-const NO_CLOSED_CALLS: EngineerCall[] = [];
 
 const EMPTY_SUMMARY: EngineerCallSummary = {
   totalCount: 0,
@@ -15,9 +14,8 @@ const EMPTY_SUMMARY: EngineerCallSummary = {
 interface CallsContextValue {
   calls: EngineerCall[];
   /**
-   * Always empty. Closed jobs are the office's business once signed off —
-   * the engineer sees their work up to "completed", and no further.
-   * Kept on the context so the screens reading it need no special-casing.
+   * Jobs the office has closed — shown as finished history under Completed
+   * and All, the same as "job done" work, and read-only on the device.
    */
   closedCalls: EngineerCall[];
   summary: EngineerCallSummary;
@@ -41,8 +39,7 @@ const CallsContext = createContext<CallsContextValue | undefined>(undefined);
  */
 export const CallsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [calls, setCalls] = useState<EngineerCall[]>([]);
-  // Deliberately never populated — see the note on closedCalls above.
-  const closedCalls = NO_CLOSED_CALLS;
+  const [closedCalls, setClosedCalls] = useState<EngineerCall[]>([]);
   const [summary, setSummary] = useState<EngineerCallSummary>(EMPTY_SUMMARY);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -53,10 +50,16 @@ export const CallsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setErrorMessage(null);
 
     try {
-      const response = await engineerCallsApi.getAssignedCalls();
+      // History is secondary: if it fails, the live list still loads.
+      const [response, closed] = await Promise.all([
+        engineerCallsApi.getAssignedCalls(),
+        engineerCallsApi.getClosedCalls().catch(() => null),
+      ]);
       setCalls(response.calls);
       setSummary(response.summary);
-
+      // A server without `scope=closed` ignores it and returns the live list —
+      // keeping only truly closed rows means that can never duplicate jobs.
+      if (closed) setClosedCalls(closed.filter((call) => isClosed(call)));
     } catch (error) {
       const message = isNetworkError(error)
         ? 'Could not reach the server. Pull down to try again once you have signal.'
@@ -72,7 +75,11 @@ export const CallsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     void refresh(false);
   }, [refresh]);
 
-  const getById = useCallback((id: string) => calls.find((c) => c._id === id), [calls]);
+  // Closed jobs open from the list too, so they are looked up here as well.
+  const getById = useCallback(
+    (id: string) => calls.find((c) => c._id === id) ?? closedCalls.find((c) => c._id === id),
+    [calls, closedCalls]
+  );
 
   const applyUpdate = useCallback((updated: EngineerCall) => {
     setCalls((prev) => prev.map((c) => (c._id === updated._id ? updated : c)));

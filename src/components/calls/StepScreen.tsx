@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -44,11 +44,21 @@ interface StepScreenProps {
 export const StepScreen: React.FC<StepScreenProps> = ({ stepKey, children, footer, canContinue }) => {
   const insets = useSafeAreaInsets();
   const { callId } = useLocalSearchParams<{ callId: string }>();
-  const { getById, applyUpdate, loading } = useCalls();
+  const { calls, getById, applyUpdate, loading, errorMessage, refresh } = useCalls();
 
   const call = callId ? getById(callId) : undefined;
   const index = JOB_STEPS.findIndex((s) => s.key === stepKey);
   const step = JOB_STEPS[index];
+
+  // Same as the job screen: opened with an empty list (the first load
+  // failed, or a cold reopen after a restart) — fetch once instead of
+  // declaring the job missing.
+  useEffect(() => {
+    if (!call && calls.length === 0 && !loading) {
+      void refresh(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (!call) {
     return (
@@ -57,7 +67,11 @@ export const StepScreen: React.FC<StepScreenProps> = ({ stepKey, children, foote
           <ActivityIndicator size="large" color={colors.brand} />
         ) : (
           <>
-            <Text style={[typography.bodyStrong, styles.mutedTitle]}>Job not found</Text>
+            <Text style={[typography.bodyStrong, styles.mutedTitle]}>
+              {errorMessage ? 'Could not load this job' : 'Job not found'}
+            </Text>
+            {errorMessage ? <Notice tone="warning" message={errorMessage} /> : null}
+            <Button label="Try again" variant="secondary" onPress={() => void refresh(false)} />
             <Button label="Back to jobs" onPress={() => router.back()} />
           </>
         )}

@@ -10,6 +10,7 @@ import { TextField } from '@/components/common/TextField';
 import { Notice } from '@/components/feedback/Notice';
 import { colors, spacing, typography } from '@/theme';
 import { isOfficeSet } from '@/utils/identityLock';
+import { hasWorkRecorded } from '@/utils/jobSteps';
 import type { EngineerCall, ServiceStep } from '@/types/call';
 
 /**
@@ -21,7 +22,10 @@ import type { EngineerCall, ServiceStep } from '@/types/call';
  */
 export default function WorkStepScreen() {
   return (
-    <StepScreen stepKey="work">
+    // Same rule the later required steps check (jobSteps.ts) — so Next only
+    // appears once they will actually open, instead of letting the engineer
+    // walk through Spares and Photos and hit a wall at Charges.
+    <StepScreen stepKey="work" canContinue={hasWorkRecorded}>
       {(call, applyUpdate) => <WorkBody call={call} onUpdated={applyUpdate} />}
     </StepScreen>
   );
@@ -78,6 +82,12 @@ const WorkBody: React.FC<{ call: EngineerCall; onUpdated: (c: EngineerCall) => v
       setError('Write what you did on this visit.');
       return;
     }
+    // A checklist saved with every step blank records no work, and the job
+    // cannot move on without some.
+    if (usingChecklist && !serviceSteps.some((s) => (stepInputs[s.order]?.notes ?? '').trim()) && !remarks.trim()) {
+      setError('Fill in at least one step with what you did.');
+      return;
+    }
 
     setSaving(true);
     try {
@@ -131,7 +141,7 @@ const WorkBody: React.FC<{ call: EngineerCall; onUpdated: (c: EngineerCall) => v
       )}
 
       {/* Only offered when the office has not set it. The full set of
-          identity fields, locked or not, lives on the Verify the product
+          identity fields, locked or not, lives on the Check SR
           step next to the nameplate photo. */}
       {isOfficeSet(call, 'serialNumber') ? null : (
         <TextField

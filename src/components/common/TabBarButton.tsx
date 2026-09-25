@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, StyleSheet } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { colors, radius, spacing } from '@/theme';
 
 /**
@@ -15,16 +15,27 @@ import { colors, radius, spacing } from '@/theme';
  * rather than importing an internal build path to name it precisely.
  */
 export const TabBarButton = ({ children, style, onPress, onLongPress, ref, ...rest }: any) => {
+  // The tab bar marks the current tab through accessibility state.
+  const selected = Boolean(rest.accessibilityState?.selected ?? rest['aria-selected']);
+
   return (
     <Pressable
       ref={ref}
       onPress={onPress}
       onLongPress={onLongPress}
       android_ripple={{ color: colors.brandWash, borderless: false }}
-      style={({ pressed }) => [styles.button, pressed && styles.pressed, style]}
+      // The tab bar's own item style top-aligns the icon + label (flex-start,
+      // 5px padding). Re-centre after it so the underline sits right under the
+      // label instead of stranded at the bottom edge of the bar.
+      style={({ pressed }) => [styles.button, style, styles.centred, pressed && styles.pressed]}
       {...rest}
     >
-      {children}
+      <View style={styles.content}>
+        {children}
+        {/* A short brand-blue bar under the current tab. Always laid out so
+            switching tabs doesn't nudge the icon/label up and down. */}
+        <View style={[styles.indicator, selected && styles.indicatorActive]} />
+      </View>
     </Pressable>
   );
 };
@@ -37,6 +48,23 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing.sm,
     borderRadius: radius.md,
     overflow: 'hidden',
+  },
+  centred: {
+    justifyContent: 'center',
+    paddingVertical: 0,
+  },
+  content: {
+    alignItems: 'center',
+  },
+  indicator: {
+    marginTop: 4,
+    width: 28,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: 'transparent',
+  },
+  indicatorActive: {
+    backgroundColor: colors.brand,
   },
   pressed: {
     opacity: 0.7,

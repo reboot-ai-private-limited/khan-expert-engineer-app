@@ -15,6 +15,12 @@ import type { EngineerCall } from '@/types/call';
 interface CheckInOutCardProps {
   call: EngineerCall;
   onUpdated: (call: EngineerCall) => void;
+  /**
+   * Which half to show. The check-in step must not offer Checkout — it sat
+   * right under the selfie, and tapping it recorded "departure" before any
+   * work was done. Defaults to both, as before.
+   */
+  mode?: 'check-in' | 'check-out' | 'both';
 }
 
 const IMAGE_QUALITY = 0.5;
@@ -31,10 +37,14 @@ const getGpsFix = async (): Promise<Location.LocationObjectCoords> => {
 };
 
 /**
- * Job-start check-in (selfie + GPS) and job-completion check-out (GPS only)
- * gates. Both block the rest of the job screen until they succeed.
+ * Job-start "Start work" gate (selfie + GPS) and job-completion "Checkout"
+ * gate (GPS only). Both block the rest of the job screen until they
+ * succeed. Internally still called check-in/check-out — the route, API
+ * endpoints and stored field names are unchanged, only the on-screen labels.
  */
-export const CheckInOutCard: React.FC<CheckInOutCardProps> = ({ call, onUpdated }) => {
+export const CheckInOutCard: React.FC<CheckInOutCardProps> = ({ call, onUpdated, mode = 'both' }) => {
+  const showCheckIn = mode !== 'check-out';
+  const showCheckOut = mode !== 'check-in';
   const [busy, setBusy] = useState<'in' | 'out' | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -58,7 +68,7 @@ export const CheckInOutCard: React.FC<CheckInOutCardProps> = ({ call, onUpdated 
       setError(
         isNetworkError(err)
           ? 'Could not reach the server. Try again once you have signal.'
-          : (serverMessage(err) ?? (err instanceof Error ? err.message : 'Check-in failed. Try again.'))
+          : (serverMessage(err) ?? (err instanceof Error ? err.message : 'Could not start work. Try again.'))
       );
     } finally {
       setBusy(null);
@@ -118,7 +128,7 @@ export const CheckInOutCard: React.FC<CheckInOutCardProps> = ({ call, onUpdated 
       setError(
         isNetworkError(err)
           ? 'Could not reach the server. Try again once you have signal.'
-          : (serverMessage(err) ?? (err instanceof Error ? err.message : 'Check-in failed. Try again.'))
+          : (serverMessage(err) ?? (err instanceof Error ? err.message : 'Could not start work. Try again.'))
       );
     } finally {
       setBusy(null);
@@ -140,7 +150,7 @@ export const CheckInOutCard: React.FC<CheckInOutCardProps> = ({ call, onUpdated 
       setError(
         isNetworkError(err)
           ? 'Could not reach the server. Try again once you have signal.'
-          : (serverMessage(err) ?? (err instanceof Error ? err.message : 'Check-out failed. Try again.'))
+          : (serverMessage(err) ?? (err instanceof Error ? err.message : 'Checkout failed. Try again.'))
       );
     } finally {
       setBusy(null);
@@ -149,26 +159,28 @@ export const CheckInOutCard: React.FC<CheckInOutCardProps> = ({ call, onUpdated 
 
   return (
     <View style={styles.card}>
+      {showCheckIn ? (
       <View style={styles.row}>
         <View style={styles.rowText}>
-          <Text style={[typography.label, styles.label]}>Check-in</Text>
+          <Text style={[typography.label, styles.label]}>Start work</Text>
           {call.checkIn ? (
-            <Text style={[typography.small, styles.done]}>Checked in at {formatTime(call.checkIn.capturedAt)}</Text>
+            <Text style={[typography.small, styles.done]}>Started at {formatTime(call.checkIn.capturedAt)}</Text>
           ) : (
             <Text style={[typography.small, styles.pending]}>Required before you start the job</Text>
           )}
         </View>
         {call.checkIn ? (
-          <Image source={{ uri: call.checkIn.selfieUrl }} style={styles.selfie} accessibilityLabel="Check-in selfie" />
+          <Image source={{ uri: call.checkIn.selfieUrl }} style={styles.selfie} accessibilityLabel="Start-of-work selfie" />
         ) : (
-          <Button label="Check in" onPress={doCheckIn} loading={busy === 'in'} loadingLabel="Checking in…" />
+          <Button label="Start work" onPress={doCheckIn} loading={busy === 'in'} loadingLabel="Starting…" />
         )}
       </View>
+      ) : null}
 
-      {call.checkIn ? (
-        <View style={[styles.row, styles.rowDivider]}>
+      {showCheckOut && call.checkIn ? (
+        <View style={[styles.row, showCheckIn && styles.rowDivider]}>
           <View style={styles.rowText}>
-            <Text style={[typography.label, styles.label]}>Check-out</Text>
+            <Text style={[typography.label, styles.label]}>Checkout</Text>
             {call.checkOut ? (
               <Text style={[typography.small, styles.done]}>Checked out at {formatTime(call.checkOut.capturedAt)}</Text>
             ) : (
@@ -177,7 +189,7 @@ export const CheckInOutCard: React.FC<CheckInOutCardProps> = ({ call, onUpdated 
           </View>
           {!call.checkOut && (
             <Button
-              label="Check out"
+              label="Checkout"
               variant="secondary"
               onPress={doCheckOut}
               loading={busy === 'out'}

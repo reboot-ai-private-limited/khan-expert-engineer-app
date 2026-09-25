@@ -7,6 +7,8 @@ import { compressAsset } from '@/utils/imageCapture';
 import { Ionicons } from '@expo/vector-icons';
 import { idCardApi } from '@/api/endpoints/idCard';
 import { isNetworkError, serverMessage } from '@/api/client';
+import { captureIntent } from '@/services/storage/captureIntent';
+import { usePendingCapture } from '@/hooks/usePendingCapture';
 import { Notice } from '@/components/feedback/Notice';
 import { colors, radius, spacing, typography } from '@/theme';
 import type { IdCard } from '@/types/idCard';
@@ -43,12 +45,36 @@ export default function IdCardsScreen() {
     void load();
   }, []);
 
+  // A photo taken while Android killed the app mid-capture — the camera
+  // activity being in front is exactly when the system reclaims memory by
+  // killing the app behind it. Without this the photo is still taken, but
+  // the app has forgotten it was for the ID photo, and it looks like taking
+  // the photo made the app "restart" and lose the shot.
+  usePendingCapture('id-card-photo', 'id-card-photo', async (dataUri) => {
+    setUploading(true);
+    setError(null);
+    try {
+      const url = await idCardApi.uploadIdPhoto(dataUri);
+      setPhotoUrl(url);
+    } catch (err) {
+      setError(serverMessage(err) ?? 'Photo recovered, but did not upload. Try again.');
+    } finally {
+      setUploading(false);
+    }
+  });
+
   const pickPhoto = async (source: 'camera' | 'library') => {
     const permission =
       source === 'camera'
         ? await ImagePicker.requestCameraPermissionsAsync()
         : await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) return;
+
+    // Recorded BEFORE the camera opens: if the app is killed while it is in
+    // front, this is the only record that the photo was for the ID card.
+    if (source === 'camera') {
+      await captureIntent.set({ purpose: 'id-card-photo', callId: 'id-card-photo' });
+    }
 
     // Resized before encoding — a full-resolution base64 exhausts the heap
     // and gets the app killed. See utils/imageCapture.ts.
@@ -57,6 +83,7 @@ export default function IdCardsScreen() {
         ? await ImagePicker.launchCameraAsync({ quality: 1, mediaTypes: ['images'] })
         : await ImagePicker.launchImageLibraryAsync({ quality: 1, mediaTypes: ['images'] });
 
+    if (source === 'camera') await captureIntent.clear();
     if (result.canceled) return;
     const asset = result.assets[0];
 

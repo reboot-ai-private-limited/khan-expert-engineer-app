@@ -6,7 +6,7 @@ import { CheckInOutCard } from '@/components/calls/CheckInOutCard';
 export default function CheckInStepScreen() {
   return (
     <StepScreen stepKey="check-in" canContinue={(call) => Boolean(call.checkIn)}>
-      {(call, applyUpdate) => <CheckInOutCard call={call} onUpdated={applyUpdate} />}
+      {(call, applyUpdate) => <CheckInOutCard call={call} onUpdated={applyUpdate} mode="check-in" />}
     </StepScreen>
   );
 }

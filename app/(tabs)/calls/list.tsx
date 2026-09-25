@@ -1,5 +1,14 @@
 import React, { useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  FlatList,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,7 +21,7 @@ import { colors, radius, spacing, typography } from '@/theme';
 import { jobFilterLabel, matchesJobFilter, type JobFilter } from '@/utils/callStatus';
 import type { EngineerCall } from '@/types/call';
 
-const FILTERS: JobFilter[] = ['pending', 'today', 'completed'];
+const FILTERS: JobFilter[] = ['today', 'pending', 'open', 'open_today', 'completed', 'all'];
 
 const isJobFilter = (value: unknown): value is JobFilter =>
   typeof value === 'string' && (FILTERS as string[]).includes(value);
@@ -27,9 +36,12 @@ const matchesSearch = (call: EngineerCall, query: string): boolean => {
 };
 
 const EMPTY_COPY: Record<JobFilter, string> = {
-  pending: 'Nothing outstanding right now — every assigned job is done.',
   today: 'Nothing scheduled for today.',
+  pending: 'Nothing waiting to be picked up.',
+  open: 'Nothing outstanding right now — every assigned job is done.',
+  open_today: 'Nothing left to do today.',
   completed: 'No finished jobs yet.',
+  all: 'No jobs assigned to you yet.',
 };
 
 /**
@@ -42,17 +54,18 @@ export default function JobListScreen() {
   const params = useLocalSearchParams<{ filter?: string }>();
   const { calls, closedCalls, loading, refreshing, errorMessage, refresh } = useCalls();
 
-  const [filter, setFilter] = useState<JobFilter>(isJobFilter(params.filter) ? params.filter : 'pending');
+  const [filter, setFilter] = useState<JobFilter>(isJobFilter(params.filter) ? params.filter : 'open');
   const [search, setSearch] = useState('');
 
   const visible = useMemo(() => {
-    if (filter !== 'completed') {
+    if (filter !== 'completed' && filter !== 'all') {
       return calls.filter((call) => matchesJobFilter(call, filter) && matchesSearch(call, search));
     }
 
     /**
      * Completed means all finished work: jobs the engineer marked done, plus
-     * the ones the office has since closed.
+     * the ones the office has since closed. All means literally everything,
+     * so it needs that same history appended.
      *
      * The closed ones are deliberately NOT run through matchesJobFilter — a
      * status of "Closed" classifies as 'other', not 'completed', so the
@@ -60,7 +73,7 @@ export default function JobListScreen() {
      * Coming back from scope=closed is itself the proof they are finished.
      */
     const rows = [
-      ...calls.filter((call) => matchesJobFilter(call, 'completed')),
+      ...calls.filter((call) => matchesJobFilter(call, filter)),
       ...closedCalls,
     ].filter((call) => matchesSearch(call, search));
 
@@ -76,7 +89,9 @@ export default function JobListScreen() {
         <Pressable onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back">
           <Ionicons name="chevron-back" size={24} color={colors.text} />
         </Pressable>
-        <Text style={[typography.title, styles.headerTitle]}>All work</Text>
+        <Text style={[typography.title, styles.headerTitle]} numberOfLines={1}>
+          All work
+        </Text>
         <View style={{ width: 24 }} />
       </View>
 
@@ -89,7 +104,11 @@ export default function JobListScreen() {
         }
         ListHeaderComponent={
           <View style={styles.listHeader}>
-            <View style={styles.chipRow}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.chipRow}
+            >
               {FILTERS.map((option) => {
                 const active = option === filter;
                 return (
@@ -106,7 +125,7 @@ export default function JobListScreen() {
                   </Pressable>
                 );
               })}
-            </View>
+            </ScrollView>
 
             <SearchBar value={search} onChangeText={setSearch} />
 
@@ -166,6 +185,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.md,
   },
   headerTitle: {
+    flexShrink: 1,
     color: colors.text,
   },
   listContent: {
@@ -178,10 +198,12 @@ const styles = StyleSheet.create({
   },
   chipRow: {
     flexDirection: 'row',
+    // Six buckets don't fit on one line of a phone — scroll horizontally
+    // instead of wrapping, so the row stays a single line.
     gap: spacing.sm,
   },
   chip: {
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     borderRadius: radius.pill,
     borderWidth: 1,

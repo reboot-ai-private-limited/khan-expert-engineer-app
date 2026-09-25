@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, ImageBackground, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { CallCard } from '@/components/calls/CallCard';
@@ -9,8 +9,11 @@ import { Button } from '@/components/common/Button';
 import { Notice } from '@/components/feedback/Notice';
 import { useAuth } from '@/context/AuthContext';
 import { useCalls } from '@/context/CallsContext';
-import { colors, spacing, typography } from '@/theme';
+import { colors, radius, spacing, typography } from '@/theme';
 import type { EngineerCall } from '@/types/call';
+
+/** Designed banner — the greeting is laid over its plain blue left side. */
+const HOME_BANNER = require('../../../assets/images/homeBanner.png');
 
 const matchesSearch = (call: EngineerCall, query: string): boolean => {
   if (!query) return true;
@@ -31,7 +34,9 @@ export default function CallsScreen() {
 
   const filteredCalls = useMemo(() => calls.filter((call) => matchesSearch(call, search)), [calls, search]);
 
-  const firstName = engineer?.name?.split(' ')[0] ?? 'there';
+  const rawFirstName = engineer?.name?.trim().split(' ')[0] ?? '';
+  // Names are stored as typed ("rajdeep") — shown capitalised in the greeting.
+  const firstName = rawFirstName ? rawFirstName[0].toUpperCase() + rawFirstName.slice(1) : 'there';
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + spacing.lg }]}>
@@ -51,8 +56,24 @@ export default function CallsScreen() {
         }
         ListHeaderComponent={
           <View style={styles.header}>
-            <Text style={[typography.label, styles.eyebrow]}>Hi {firstName}</Text>
-            <Text style={[typography.display, styles.title]}>Your jobs</Text>
+            {/* The greeting sits over the banner's plain blue left side. */}
+            <ImageBackground
+              source={HOME_BANNER}
+              style={styles.hero}
+              imageStyle={styles.heroImage}
+              resizeMode="cover"
+              accessibilityIgnoresInvertColors
+            >
+              <View style={styles.heroText}>
+                <Text style={styles.eyebrow} numberOfLines={1}>
+                  Hi {firstName},
+                </Text>
+                <Text style={styles.title}>Your Jobs</Text>
+                <Text style={styles.heroSub} numberOfLines={1}>
+                  {calls.length} active {calls.length === 1 ? 'job' : 'jobs'}
+                </Text>
+              </View>
+            </ImageBackground>
 
             <JobStatsRow
               calls={calls}
@@ -60,7 +81,11 @@ export default function CallsScreen() {
               onSelect={(filter) => router.push({ pathname: '/(tabs)/calls/list', params: { filter } })}
             />
 
-            <SearchBar value={search} onChangeText={setSearch} />
+            <SearchBar
+              value={search}
+              onChangeText={setSearch}
+              onFilterPress={() => router.push({ pathname: '/(tabs)/calls/list', params: { filter: 'all' } })}
+            />
 
             {errorMessage && calls.length > 0 ? (
               <Notice tone="warning" message={errorMessage} />
@@ -110,22 +135,48 @@ export default function CallsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#EEF3F9',
   },
   listContent: {
     flexGrow: 1,
-    paddingHorizontal: spacing.xl,
+    paddingHorizontal: spacing.lg,
   },
   header: {
     gap: spacing.lg,
     marginBottom: spacing.lg,
   },
+  hero: {
+    // The banner's own shape (1945 × 809), so nothing is cropped away.
+    aspectRatio: 1945 / 809,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xl,
+    borderRadius: 22,
+    overflow: 'hidden',
+    backgroundColor: colors.brand,
+  },
+  heroImage: {
+    borderRadius: 22,
+  },
+  heroText: {
+    // Kept to the plain blue left half, clear of the photo.
+    maxWidth: '55%',
+    gap: 2,
+  },
   eyebrow: {
-    color: colors.textMuted,
+    color: colors.textOnBrand,
+    fontSize: 17,
+    opacity: 0.95,
   },
   title: {
-    color: colors.text,
-    marginTop: -spacing.xs,
+    color: colors.textOnBrand,
+    fontSize: 32,
+    lineHeight: 38,
+    fontWeight: '800',
+  },
+  heroSub: {
+    color: colors.textOnBrand,
+    fontSize: 15,
+    opacity: 0.95,
   },
   separator: {
     height: spacing.md,
@@ -138,7 +189,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.huge,
   },
   loadingText: {
-    color: colors.textMuted,
+    color: colors.textSoft,
   },
   retry: {
     minWidth: 160,
@@ -148,7 +199,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   emptyBody: {
-    color: colors.textMuted,
+    color: colors.textSoft,
     textAlign: 'center',
     maxWidth: 260,
   },

@@ -28,17 +28,17 @@ interface RideCardProps {
 }
 
 /**
- * The engineer's travel claim, recorded when they start the job.
+ * The engineer's travel log, recorded when they start the job.
  *
- * The fare is a claim, not a payment: it reaches their wallet only once the
- * office approves it. A pending or declined claim can be re-submitted to fix
- * a wrong fare or a bad photo; an approved one is frozen, because the money
- * has already moved.
+ * It's a log, not a payment claim: the office reviews it, but no money
+ * moves either way. A pending or declined log can be re-submitted to fix a
+ * wrong car number or a bad photo; an approved one is frozen.
  *
  * Unlike the photo capture in ProductVerificationCard, this one is NOT put
  * through the durable upload queue: the ride is a single all-or-nothing
- * submit (type + mode + fare + photo together), so a half-uploaded photo
- * with no fare behind it would be meaningless to retry on its own.
+ * submit (type + mode + car number + photo together), so a half-uploaded
+ * photo with no car number behind it would be meaningless to retry on its
+ * own.
  */
 export const RideCard: React.FC<RideCardProps> = ({ call, onUpdated }) => {
   const ride = call.ride;
@@ -48,7 +48,7 @@ export const RideCard: React.FC<RideCardProps> = ({ call, onUpdated }) => {
 
   const [vehicleType, setVehicleType] = useState<RideVehicleType>(ride?.vehicleType ?? '2W');
   const [mode, setMode] = useState<RideMode>(ride?.mode ?? 'public');
-  const [fare, setFare] = useState(ride ? String(ride.fare) : '');
+  const [carNumber, setCarNumber] = useState(ride?.carNumber ?? '');
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [photoData, setPhotoData] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
@@ -81,19 +81,18 @@ export const RideCard: React.FC<RideCardProps> = ({ call, onUpdated }) => {
     if (submitting) return;
     setError(null);
 
-    const amount = Number(fare);
-    if (!fare.trim() || !Number.isFinite(amount) || amount < 0) {
-      setError('Enter the fare you paid.');
+    if (!carNumber.trim()) {
+      setError("Enter the vehicle's car number.");
       return;
     }
     if (!photoData) {
-      setError('Take a photo of the fare as proof.');
+      setError('Take a photo of the ride as proof.');
       return;
     }
 
     setSubmitting(true);
     try {
-      onUpdated(await engineerCallsApi.recordRide(call._id, vehicleType, mode, amount, photoData));
+      onUpdated(await engineerCallsApi.recordRide(call._id, vehicleType, mode, carNumber.trim(), photoData));
       setPhotoUri(null);
       setPhotoData(null);
       setEditing(false);
@@ -109,9 +108,9 @@ export const RideCard: React.FC<RideCardProps> = ({ call, onUpdated }) => {
   };
 
   const summary = approved
-    ? `Approved · ₹${ride?.fare}`
+    ? `Approved · ${ride?.carNumber}`
     : pending
-      ? `₹${ride?.fare} · waiting for the office`
+      ? `${ride?.carNumber} · waiting for the office`
       : declined
         ? 'Declined by the office'
         : 'Not recorded yet';
@@ -125,20 +124,20 @@ export const RideCard: React.FC<RideCardProps> = ({ call, onUpdated }) => {
       {ride && !showForm ? (
         <View style={styles.block}>
           {approved ? (
-            <Notice tone="success" message={`Approved — ₹${ride.fare} has been added to your wallet.`} />
+            <Notice tone="success" message="Approved by the office." />
           ) : pending ? (
-            <Notice tone="info" message="Recorded. The office will approve the fare before it reaches your wallet." />
+            <Notice tone="info" message="Recorded. Waiting for the office to review it." />
           ) : (
             <Notice
               tone="warning"
-              message={ride.decisionNote || 'The office declined this travel claim.'}
+              message={ride.decisionNote || 'The office declined this travel log.'}
             />
           )}
 
           <View style={styles.summaryRow}>
             <Detail label="Vehicle" value={RIDE_VEHICLE_LABEL[ride.vehicleType]} />
             <Detail label="Ride" value={RIDE_MODE_LABEL[ride.mode]} />
-            <Detail label="Fare" value={`₹${ride.fare}`} />
+            <Detail label="Car number" value={ride.carNumber} />
           </View>
 
           {ride.photoUrl ? <Image source={{ uri: ride.photoUrl }} style={styles.proof} /> : null}
@@ -154,7 +153,7 @@ export const RideCard: React.FC<RideCardProps> = ({ call, onUpdated }) => {
       ) : (
         <View style={styles.block}>
           <Text style={[typography.small, styles.intro]}>
-            How did you travel to this job? The office approves the fare before it is added to your wallet.
+            How did you travel to this job? The office reviews this before it's finalized.
           </Text>
 
           <ChipRow
@@ -174,11 +173,11 @@ export const RideCard: React.FC<RideCardProps> = ({ call, onUpdated }) => {
           />
 
           <TextField
-            label="Fare paid (₹)"
-            value={fare}
-            onChangeText={(t) => setFare(t.replace(/[^0-9]/g, ''))}
-            keyboardType="number-pad"
-            placeholder="0"
+            label="Car number"
+            value={carNumber}
+            onChangeText={(t) => setCarNumber(t.toUpperCase())}
+            autoCapitalize="characters"
+            placeholder="e.g. WB-74-A-1234"
           />
 
           <View style={styles.photoBlock}>
@@ -192,7 +191,7 @@ export const RideCard: React.FC<RideCardProps> = ({ call, onUpdated }) => {
               <Pressable
                 onPress={() => void takePhoto()}
                 accessibilityRole="button"
-                accessibilityLabel="Take a photo of the fare"
+                accessibilityLabel="Take a photo of the ride"
                 style={({ pressed }) => [styles.captureBox, pressed && styles.capturePressed]}
               >
                 <Ionicons name="camera" size={22} color={colors.brand} />

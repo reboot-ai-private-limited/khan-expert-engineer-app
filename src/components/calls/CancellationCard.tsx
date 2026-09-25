@@ -28,13 +28,16 @@ const formatWhen = (iso?: string): string => {
 };
 
 /**
- * Ask the office to cancel a job.
+ * Ask the office to cancel this call — meaning take the engineer off it,
+ * not cancel the customer's ticket. The call stays open; approval clears
+ * the assignment and the office gives it to someone else.
  *
- * An engineer has never been able to cancel a ticket themselves — the
- * server refuses it outright. This turns that refusal into a request the
- * office can answer. While one is pending the job is locked (the server
- * rejects edits too, so this is not the only guard), and an approved
- * request removes the job from the list altogether.
+ * An engineer has never been able to drop a ticket themselves — the server
+ * refuses it outright. This turns that refusal into a request the office
+ * can answer. While one is pending the job is locked (the server rejects
+ * edits too, so this is not the only guard), and an approved request
+ * removes the job from this engineer's list — it reappears, unassigned, for
+ * the office to hand to the next engineer.
  */
 export const CancellationCard: React.FC<CancellationCardProps> = ({ call, onUpdated }) => {
   const request = call.cancellationRequest;
@@ -79,12 +82,12 @@ export const CancellationCard: React.FC<CancellationCardProps> = ({ call, onUpda
     // Auto-expanded while something needs the engineer's attention: a
     // pending request explains why the job is locked, and a decline tells
     // them to carry on. Otherwise it stays out of the way.
-    <CollapsibleSection title="Cancel this job" summary={summary} defaultExpanded={pending || declined}>
+    <CollapsibleSection title="Cancel this call" summary={summary} defaultExpanded={pending || declined}>
       {pending && request ? (
         <View style={styles.block}>
           <Notice
             tone="info"
-            message="You have asked the office to cancel this job."
+            message="You have asked the office to cancel this call."
             action="It stays locked until they decide."
           />
           <Field label="Your reason" value={request.reason} />

@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "One Call Service",
+    "name": "Khan Expert Engineer",
     "slug": "khanexpert-engineer",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -27,8 +27,8 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 220,
+          "image": "./assets/images/splash-logo.png",
+          "imageWidth": 240,
           "resizeMode": "contain",
           "backgroundColor": "#0B192C"
         }
@@ -36,14 +36,14 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "One Call Service needs access to your photos so you can attach existing pictures to a job.",
-          "cameraPermission": "One Call Service needs your camera to photograph completed work on a job."
+          "photosPermission": "Khan Expert Engineer needs access to your photos so you can attach existing pictures to a job.",
+          "cameraPermission": "Khan Expert Engineer needs your camera to photograph completed work on a job."
         }
       ],
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "One Call Service needs your location to record check-in and check-out at the job site."
+          "locationAlwaysAndWhenInUsePermission": "Khan Expert Engineer needs your location to record check-in and check-out at the job site."
         }
       ]
     ],

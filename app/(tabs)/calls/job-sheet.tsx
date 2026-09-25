@@ -103,7 +103,8 @@ const JobSheetBody: React.FC<{ call: EngineerCall; onUpdated: (c: EngineerCall) 
   const services = call.engineerServices ?? [];
   const total = services.reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
   const steps = (call.stepResults ?? []).filter((s) => (s.notes ?? '').trim().length > 0);
-  const photos = call.service_images ?? [];
+  // Private photos (the purchase bill) have no public link to show here.
+  const photos = (call.service_images ?? []).filter((img) => Boolean(img.secure_url));
 
   const submit = async () => {
     if (submitting) return;
@@ -204,7 +205,7 @@ const JobSheetBody: React.FC<{ call: EngineerCall; onUpdated: (c: EngineerCall) 
               label="Ride"
               value={`${RIDE_MODE_LABEL[call.ride.mode]} · ${RIDE_VEHICLE_LABEL[call.ride.vehicleType]}`}
             />
-            <Row label="Fare" value={`${money(call.ride.fare)} (${call.ride.status})`} />
+            <Row label="Car number" value={`${call.ride.carNumber} (${call.ride.status})`} />
           </Section>
         ) : null}
 

@@ -36,23 +36,32 @@ export const statusPillPalette: Record<
 };
 
 /**
- * The three buckets the home screen counts, and the job list can be
- * filtered by. Deliberately not the same split as `StatusBucket`:
+ * The buckets the home screen counts, and the job list can be filtered by.
+ * Deliberately not the same split as `StatusBucket`, and they overlap each
+ * other on purpose — each answers a different question an engineer asks:
  *
- * - `pending`   — everything still outstanding (anything not completed),
- *                 which is what "what's left for me" means to an engineer.
- * - `today`     — scheduled for today, whatever its status. Overlaps the
- *                 other two on purpose; it answers "where am I going now".
- * - `completed` — finished, still on the engineer's list until the office
- *                 closes it. A closed job leaves the app entirely: sign-off
- *                 is the office's business, not the engineer's.
+ * - `today`      — scheduled for today, whatever its status: "where am I
+ *                  going today".
+ * - `pending`    — not picked up yet: the status itself still reads Pending
+ *                  or Call Registered. Narrower than `open`.
+ * - `open`       — everything still outstanding (not completed, not closed),
+ *                  which is "what's left for me" however far along it is.
+ * - `open_today` — the intersection: outstanding AND scheduled today, i.e.
+ *                  the work that has to happen before the day ends.
+ * - `completed`  — finished, still on the engineer's list until the office
+ *                  closes it. A closed job leaves the app entirely: sign-off
+ *                  is the office's business, not the engineer's.
+ * - `all`        — every assigned job, no filter at all.
  */
-export type JobFilter = 'pending' | 'today' | 'completed';
+export type JobFilter = 'today' | 'pending' | 'open' | 'open_today' | 'completed' | 'all';
 
 export const jobFilterLabel: Record<JobFilter, string> = {
+  today: "Today's Appointment",
   pending: 'Pending',
-  today: 'Today',
+  open: 'Open',
+  open_today: 'Open Today',
   completed: 'Completed',
+  all: 'All',
 };
 
 /** The date a visit is expected on — same pair of fields the job card shows. */
@@ -78,13 +87,29 @@ export const isScheduledToday = (call: { visitdate?: string; etaDate?: string })
 export const isCompleted = (call: { jobStatus: string }): boolean =>
   classifyStatus(call.jobStatus) === 'completed';
 
-export const matchesJobFilter = (call: { jobStatus: string; visitdate?: string; etaDate?: string }, filter: JobFilter): boolean => {
-  if (filter === 'completed') return isCompleted(call);
-  if (filter === 'today') return isScheduledToday(call);
-  return !isCompleted(call);
+export const matchesJobFilter = (
+  call: { jobStatus: string; subStatus?: string; visitdate?: string; etaDate?: string },
+  filter: JobFilter
+): boolean => {
+  switch (filter) {
+    case 'all':
+      return true;
+    case 'today':
+      return isScheduledToday(call);
+    case 'pending':
+      return classifyStatus(call.jobStatus) === 'pending';
+    case 'open':
+      return !isFinished(call);
+    case 'open_today':
+      return !isFinished(call) && isScheduledToday(call);
+    case 'completed':
+      return isCompleted(call);
+    default:
+      return true;
+  }
 };
 
-export const countByJobFilter = <T extends { jobStatus: string; visitdate?: string; etaDate?: string }>(
+export const countByJobFilter = <T extends { jobStatus: string; subStatus?: string; visitdate?: string; etaDate?: string }>(
   calls: T[],
   filter: JobFilter
 ): number => calls.filter((call) => matchesJobFilter(call, filter)).length;

@@ -153,8 +153,8 @@ const AadhaarSection: React.FC<{
             placeholder="12-digit number"
           />
           <TextField label="Name on the card" value={name} onChangeText={setName} />
-          <PhotoSlot label="Front" value={front} onChange={setFront} />
-          <PhotoSlot label="Back" value={back} onChange={setBack} />
+          <PhotoSlot label="Front" value={front} onChange={setFront} recoveryId="kyc-aadhaar-front" />
+          <PhotoSlot label="Back" value={back} onChange={setBack} recoveryId="kyc-aadhaar-back" />
           <View style={styles.formActions}>
             <Button label="Cancel" variant="secondary" onPress={() => setEditing(false)} style={styles.formButton} />
             <Button
@@ -244,7 +244,7 @@ const PanSection: React.FC<{
             placeholder="ABCDE1234F"
           />
           <TextField label="Name on the card" value={name} onChangeText={setName} />
-          <PhotoSlot label="PAN card photo" value={image} onChange={setImage} />
+          <PhotoSlot label="PAN card photo" value={image} onChange={setImage} recoveryId="kyc-pan-photo" />
           <View style={styles.formActions}>
             <Button label="Cancel" variant="secondary" onPress={() => setEditing(false)} style={styles.formButton} />
             <Button

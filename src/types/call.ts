@@ -41,19 +41,20 @@ export interface CustomerSignature {
 }
 
 /**
- * An engineer's request to cancel a job, and the office's answer.
+ * An engineer's request to be released from a call, and the office's
+ * answer — NOT a request to cancel the call itself; the ticket stays open.
  *
  * While 'pending' the job stays in the list but is locked — the server
- * refuses edits. On 'approved' the job's status becomes Cancelled, which
- * drops it out of the assigned list entirely, so the app only ever sees an
- * approved request in the brief window before the next refresh.
+ * refuses edits. On 'approved' the engineer is cleared back to Unassigned,
+ * which drops it out of the assigned list entirely, so the app only ever
+ * sees an approved request in the brief window before the next refresh.
  */
 /**
- * The engineer's travel to the job — what they rode, what it cost, and the
- * photo proving it. Recorded at check-in.
+ * The engineer's travel to the job — what they rode, the vehicle's car
+ * number, and the photo proving it. Recorded at check-in.
  *
- * The fare is a claim: it only reaches their wallet once the office
- * approves it, as a Transportation entry.
+ * It's a travel log, not a payment claim: the office reviews it, but no
+ * money moves either way.
  */
 export type RideVehicleType = '2W' | '3W' | '4W';
 
@@ -78,7 +79,7 @@ export const RIDE_VEHICLE_LABEL: Record<RideVehicleType, string> = {
 export interface Ride {
   vehicleType: RideVehicleType;
   mode: RideMode;
-  fare: number;
+  carNumber: string;
   photoUrl: string;
   photoPublicId?: string;
   recordedBy: string;
@@ -216,8 +217,13 @@ export interface EngineerCall {
   billNumber?: string;
   billAmount?: number;
   warrantyStatus?: WarrantyStatus;
+  /** Why the customer was charged although the job is under warranty. */
+  warrantyChargeReason?: WarrantyChargeReason;
+  warrantyChargeNote?: string;
   warrantyCheckedBy?: string;
   warrantyCheckedAt?: string;
+  /** End of cover as worked out at the warranty check. */
+  warrantyValidUntil?: string;
   warrantyDisputeReason?: string;
   productCorrections?: ProductCorrection[];
   engineerNotes?: EngineerNote[];
@@ -267,6 +273,9 @@ export interface UpdateEngineerCallPayload {
   cancelReason?: string;
   engineerServices?: EngineerServiceLine[];
   closerCode?: string;
+  /** Required by the server when a job under warranty is charged anything. */
+  warrantyChargeReason?: WarrantyChargeReason;
+  warrantyChargeNote?: string;
 }
 
 export interface UpdateEngineerCallResponse {
@@ -298,3 +307,38 @@ export interface EngineerCallListResponse {
   summary: EngineerCallSummary;
   calls: EngineerCall[];
 }
+
+/**
+ * Why a customer is charged on a job under warranty. Mirrors
+ * backend/src/utils/warrantyCharge.ts — the server refuses a charge on a
+ * warranty job without one.
+ */
+export type WarrantyChargeReason =
+  | 'physical_damage'
+  | 'consumables'
+  | 'non_warranty_part'
+  | 'visit_charge'
+  | 'extra_work'
+  | 'other';
+
+export const WARRANTY_CHARGE_REASONS: WarrantyChargeReason[] = [
+  'physical_damage',
+  'consumables',
+  'non_warranty_part',
+  'visit_charge',
+  'extra_work',
+  'other',
+];
+
+export const WARRANTY_CHARGE_REASON_LABEL: Record<WarrantyChargeReason, string> = {
+  physical_damage: 'Physical / liquid / voltage damage',
+  consumables: 'Consumables (gas, filters, etc.)',
+  non_warranty_part: 'Part not covered by warranty',
+  visit_charge: 'Visit / inspection charge',
+  extra_work: 'Extra work the customer asked for',
+  other: 'Other',
+};
+
+/** In warranty, including an extended warranty. */
+export const isUnderWarranty = (call: { warrantyStatus?: WarrantyStatus }): boolean =>
+  call.warrantyStatus === 'in_warranty' || call.warrantyStatus === 'extended';
