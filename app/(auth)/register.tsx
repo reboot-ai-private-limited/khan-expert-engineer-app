@@ -13,6 +13,7 @@ import { router } from 'expo-router';
 import { Button } from '@/components/common/Button';
 import { TextField } from '@/components/common/TextField';
 import { Notice } from '@/components/feedback/Notice';
+import { CircuitGradient } from '@/components/common/CircuitGradient';
 import { useAuth } from '@/context/AuthContext';
 import { AuthError, ENGINEER_TYPE_LABELS, SELECTABLE_ENGINEER_TYPES, type EngineerType } from '@/types/auth';
 import { colors, spacing, typography } from '@/theme';
@@ -33,8 +34,10 @@ export default function RegisterScreen() {
   const [pincode, setPincode] = useState('');
   const [route, setRoute] = useState('');
   const [yearsOfExperience, setYearsOfExperience] = useState('');
+  const [bankName, setBankName] = useState('');
   const [bankAccountNumber, setBankAccountNumber] = useState('');
   const [bankIfscCode, setBankIfscCode] = useState('');
+  const [gstin, setGstin] = useState('');
   const [engineerType, setEngineerType] = useState<EngineerType>('freelance');
   const [consent, setConsent] = useState(false);
 
@@ -49,6 +52,9 @@ export default function RegisterScreen() {
     if (!password) next.password = 'Choose a password.';
     else if (password.length < 6) next.password = 'At least 6 characters.';
     if (confirmPassword !== password) next.confirmPassword = 'Passwords do not match.';
+    if (engineerType === 'service_center' && !gstin.trim()) {
+      next.gstin = 'GSTIN is required for a service center application.';
+    }
     if (!consent) next.consent = 'Required to submit your application.';
     setFieldErrors(next);
     return Object.keys(next).length === 0;
@@ -74,8 +80,10 @@ export default function RegisterScreen() {
         district: district.trim() || undefined,
         state: state.trim() || undefined,
         pincode: pincode.trim() || undefined,
+        bankName: bankName.trim() || undefined,
         bankAccountNumber: bankAccountNumber.trim() || undefined,
         bankIfscCode: bankIfscCode.trim() || undefined,
+        gstin: gstin.trim() || undefined,
       });
       // AuthContext flips to 'authenticated'; the (auth) layout routes a
       // pending account straight to /status — no manual navigation here.
@@ -94,6 +102,7 @@ export default function RegisterScreen() {
       keyboardVerticalOffset={Platform.OS === 'android' ? insets.top : 0}
     >
       <View style={[styles.header, { paddingTop: insets.top + spacing.md }]}>
+        <CircuitGradient />
         <Pressable onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back">
           <Text style={styles.backArrow}>←</Text>
         </Pressable>
@@ -167,6 +176,18 @@ export default function RegisterScreen() {
             </View>
           </View>
 
+          {engineerType === 'service_center' ? (
+            <TextField
+              label="GSTIN"
+              value={gstin}
+              onChangeText={(t) => setGstin(t.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 15))}
+              error={fieldErrors.gstin}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              placeholder="e.g. 22AAAAA0000A1Z5"
+            />
+          ) : null}
+
           <TextField label="Preferred work area / route (optional)" value={route} onChangeText={setRoute} />
           <TextField
             label="Years of experience (optional)"
@@ -180,6 +201,12 @@ export default function RegisterScreen() {
         </Section>
 
         <Section title="Bank details">
+          <TextField
+            label="Bank name (optional)"
+            value={bankName}
+            onChangeText={setBankName}
+            placeholder="e.g. State Bank of India"
+          />
           <TextField
             label="Bank account number (optional)"
             value={bankAccountNumber}
@@ -253,18 +280,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.md,
     paddingHorizontal: spacing.xl,
-    paddingBottom: spacing.md,
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderSoft,
+    paddingBottom: spacing.lg,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    overflow: 'hidden',
+    backgroundColor: colors.brandDark,
   },
   backArrow: {
     fontSize: 24,
-    color: colors.brand,
+    color: '#FFFFFF',
     fontWeight: '700',
   },
   headerTitle: {
-    color: colors.text,
+    color: '#FFFFFF',
     flexShrink: 1,
   },
   scroll: {

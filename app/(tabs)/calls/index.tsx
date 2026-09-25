@@ -9,7 +9,7 @@ import { Button } from '@/components/common/Button';
 import { Notice } from '@/components/feedback/Notice';
 import { useAuth } from '@/context/AuthContext';
 import { useCalls } from '@/context/CallsContext';
-import { colors, spacing, typography } from '@/theme';
+import { colors, radius, spacing, typography } from '@/theme';
 import type { EngineerCall } from '@/types/call';
 
 const matchesSearch = (call: EngineerCall, query: string): boolean => {
@@ -51,8 +51,13 @@ export default function CallsScreen() {
         }
         ListHeaderComponent={
           <View style={styles.header}>
-            <Text style={[typography.label, styles.eyebrow]}>Hi {firstName}</Text>
-            <Text style={[typography.display, styles.title]}>Your jobs</Text>
+            <View style={styles.hero}>
+              <Text style={[typography.label, styles.eyebrow]}>Hi {firstName}</Text>
+              <Text style={[typography.display, styles.title]}>Your jobs</Text>
+              <Text style={[typography.small, styles.heroSub]}>
+                {calls.length} active {calls.length === 1 ? 'job' : 'jobs'}
+              </Text>
+            </View>
 
             <JobStatsRow
               calls={calls}
@@ -110,7 +115,7 @@ export default function CallsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#E2E8F0',
   },
   listContent: {
     flexGrow: 1,
@@ -120,12 +125,25 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
     marginBottom: spacing.lg,
   },
+  hero: {
+    backgroundColor: colors.brandDark,
+    borderRadius: radius.lg,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.brand,
+    paddingVertical: spacing.xl,
+    paddingHorizontal: spacing.xl,
+    gap: spacing.xs,
+  },
   eyebrow: {
-    color: colors.textMuted,
+    color: colors.textFaint,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   title: {
-    color: colors.text,
-    marginTop: -spacing.xs,
+    color: colors.textOnBrand,
+  },
+  heroSub: {
+    color: colors.textFaint,
   },
   separator: {
     height: spacing.md,
@@ -138,7 +156,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.huge,
   },
   loadingText: {
-    color: colors.textMuted,
+    color: colors.textSoft,
   },
   retry: {
     minWidth: 160,
@@ -148,7 +166,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   emptyBody: {
-    color: colors.textMuted,
+    color: colors.textSoft,
     textAlign: 'center',
     maxWidth: 260,
   },

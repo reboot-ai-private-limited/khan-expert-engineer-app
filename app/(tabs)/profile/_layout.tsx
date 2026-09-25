@@ -16,6 +16,8 @@ export default function ProfileStackLayout() {
       <Stack.Screen name="kyc" />
       <Stack.Screen name="id-cards" />
       <Stack.Screen name="wallet" />
+      <Stack.Screen name="advance" />
+      <Stack.Screen name="advance-expense" />
     </Stack>
   );
 }

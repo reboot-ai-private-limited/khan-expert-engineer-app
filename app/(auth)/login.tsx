@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  Image,
   Keyboard,
   KeyboardAvoidingView,
   Linking,
@@ -20,7 +19,7 @@ import { Notice } from '@/components/feedback/Notice';
 import { useAuth } from '@/context/AuthContext';
 import { env } from '@/config/env';
 import { AuthError } from '@/types/auth';
-import { colors, radius, spacing, typography } from '@/theme';
+import { colors, spacing, typography } from '@/theme';
 
 /** Show the support number once the engineer has failed this many times. */
 const FAILURES_BEFORE_SUPPORT = 3;
@@ -105,93 +104,92 @@ export default function LoginScreen() {
       <ScrollView
         contentContainerStyle={[
           styles.scroll,
-          { paddingTop: insets.top + spacing.huge, paddingBottom: insets.bottom + spacing.xxl },
+          { paddingTop: insets.top + spacing.xxl, paddingBottom: insets.bottom + spacing.xxl },
         ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
         <Pressable style={styles.inner} onPress={Keyboard.dismiss} accessible={false}>
-          {/* Identity */}
-          <View style={styles.header}>
-            <Image
-              source={require('../../assets/images/logo-source.png')}
-              style={styles.mark}
-              resizeMode="contain"
-              accessibilityLabel="Khan Expert Technology"
-            />
-            <Text style={[typography.display, styles.title]}>Field Engineer</Text>
-            <Text style={[typography.body, styles.subtitle]}>
-              Sign in to see the jobs assigned to you.
-            </Text>
-          </View>
+          {/* Title and form sit together as one centred group, so the whole
+              screen balances around it instead of hugging the top. */}
+          <View style={styles.centerBlock}>
+            <View style={styles.titleBlock}>
+              <Text style={[typography.display, styles.title]}>Field Engineer</Text>
+              <Text style={[typography.body, styles.subtitle]}>
+                Sign in to see the jobs assigned to you.
+              </Text>
+            </View>
 
-          {/* Why they were signed out, if they were */}
-          {sessionEndedReason ? (
-            <Notice tone="info" message={sessionEndedReason} />
-          ) : null}
+            <View style={styles.card}>
+              {/* Why they were signed out, if they were */}
+              {sessionEndedReason ? (
+                <Notice tone="info" message={sessionEndedReason} />
+              ) : null}
 
-          {/* What went wrong */}
-          {error ? (
-            <Notice
-              tone={error.code === 'network' ? 'warning' : 'error'}
-              message={error.message}
-              action={
-                error.code === 'network'
-                  ? 'Your work is not lost — sign in again once you have signal.'
-                  : undefined
-              }
-            />
-          ) : null}
+              {/* What went wrong */}
+              {error ? (
+                <Notice
+                  tone={error.code === 'network' ? 'warning' : 'error'}
+                  message={error.message}
+                  action={
+                    error.code === 'network'
+                      ? 'Your work is not lost — sign in again once you have signal.'
+                      : undefined
+                  }
+                />
+              ) : null}
 
-          {/* Form */}
-          <View style={styles.form}>
-            <TextField
-              label="Phone number or email"
-              value={loginId}
-              onChangeText={(text) => {
-                setLoginId(text);
-                if (fieldErrors.loginId) setFieldErrors((p) => ({ ...p, loginId: undefined }));
-              }}
-              error={fieldErrors.loginId}
-              placeholder="9876543210"
-              autoCapitalize="none"
-              autoCorrect={false}
-              autoComplete="username"
-              textContentType="username"
-              returnKeyType="next"
-              editable={!submitting}
-              onSubmitEditing={() => passwordRef.current?.focus()}
-              submitBehavior="submit"
-            />
+              {/* Form */}
+              <View style={styles.form}>
+                <TextField
+                  label="Phone number or email"
+                  value={loginId}
+                  onChangeText={(text) => {
+                    setLoginId(text);
+                    if (fieldErrors.loginId) setFieldErrors((p) => ({ ...p, loginId: undefined }));
+                  }}
+                  error={fieldErrors.loginId}
+                  placeholder="9876543210"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  autoComplete="username"
+                  textContentType="username"
+                  returnKeyType="next"
+                  editable={!submitting}
+                  onSubmitEditing={() => passwordRef.current?.focus()}
+                  submitBehavior="submit"
+                />
 
-            <TextField
-              ref={passwordRef}
-              label="Password"
-              value={password}
-              onChangeText={(text) => {
-                setPassword(text);
-                if (fieldErrors.password) setFieldErrors((p) => ({ ...p, password: undefined }));
-              }}
-              error={fieldErrors.password}
-              placeholder="Your password"
-              secure
-              autoCapitalize="none"
-              autoCorrect={false}
-              autoComplete="current-password"
-              textContentType="password"
-              returnKeyType="go"
-              editable={!submitting}
-              onSubmitEditing={handleSubmit}
-            />
+                <TextField
+                  ref={passwordRef}
+                  label="Password"
+                  value={password}
+                  onChangeText={(text) => {
+                    setPassword(text);
+                    if (fieldErrors.password) setFieldErrors((p) => ({ ...p, password: undefined }));
+                  }}
+                  error={fieldErrors.password}
+                  placeholder="Your password"
+                  secure
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  autoComplete="current-password"
+                  textContentType="password"
+                  returnKeyType="go"
+                  editable={!submitting}
+                  onSubmitEditing={handleSubmit}
+                />
 
-            <Button
-              label="Sign in"
-              loadingLabel="Signing in…"
-              onPress={handleSubmit}
-              loading={submitting}
-              style={styles.submit}
-              testID="login-submit"
-            />
+                <Button
+                  label="Sign in"
+                  loadingLabel="Signing in…"
+                  onPress={handleSubmit}
+                  loading={submitting}
+                  style={styles.submit}
+                  testID="login-submit"
+                />
+              </View>
+            </View>
           </View>
 
           {/* Escape hatch.
@@ -229,29 +227,40 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  scroll: {
-    flexGrow: 1,
-    paddingHorizontal: spacing.xl,
-  },
-  inner: {
-    flex: 1,
-    gap: spacing.xl,
-  },
-  header: {
+  titleBlock: {
     gap: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  mark: {
-    width: 88,
-    height: 88,
-    borderRadius: radius.lg,
-    marginBottom: spacing.md,
   },
   title: {
     color: colors.text,
+    textAlign: 'center',
   },
   subtitle: {
     color: colors.textMuted,
+    textAlign: 'center',
+  },
+  scroll: {
+    flexGrow: 1,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.xl,
+  },
+  inner: {
+    flex: 1,
+  },
+  centerBlock: {
+    flex: 1,
+    justifyContent: 'center',
+    gap: spacing.xxl,
+  },
+  card: {
+    gap: spacing.lg,
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+    padding: spacing.xl,
+    shadowColor: '#0B192C',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 20,
+    elevation: 3,
   },
   form: {
     gap: spacing.lg,
@@ -260,7 +269,6 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   footer: {
-    marginTop: 'auto',
     gap: spacing.lg,
     paddingTop: spacing.xxl,
   },

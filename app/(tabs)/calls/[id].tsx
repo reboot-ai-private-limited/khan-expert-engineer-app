@@ -64,7 +64,8 @@ export default function CallDetailScreen() {
     );
   }
 
-  const locked = isLocked(call.jobStatus, call.subStatus);
+  // Any closed variant ("Closed", "Call Closed"…) is read-only, same as job done.
+  const locked = isLocked(call.jobStatus, call.subStatus) || isClosed(call);
   const finished = isFinished(call);
   const cancellationPending = call.cancellationRequest?.status === 'pending';
   const machine = [call.brandName, call.productsName].filter(Boolean).join(' · ');

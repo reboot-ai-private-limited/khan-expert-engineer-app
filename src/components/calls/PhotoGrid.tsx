@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import { capturePhoto, pickPhotos } from '@/utils/imageCapture';
+import { captureIntent } from '@/services/storage/captureIntent';
+import { usePendingCapture } from '@/hooks/usePendingCapture';
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { engineerCallsApi } from '@/api/endpoints/engineerCalls';
 import { isNetworkError, serverMessage } from '@/api/client';
@@ -49,11 +51,22 @@ export const PhotoGrid: React.FC<PhotoGridProps> = ({ callId, images, onImagesCh
     }
   };
 
+  // A photo taken while Android killed the app behind the camera — it
+  // comes back here on the next launch instead of being lost.
+  usePendingCapture('work-photo', callId, async (dataUri) => {
+    await upload([{ dataUri }]);
+  });
+
   const takePhoto = async () => {
     try {
+      // Recorded before the camera opens: if the app is killed while it is
+      // in front, this is the only record of where the photo belongs.
+      await captureIntent.set({ purpose: 'work-photo', callId });
       const photo = await capturePhoto();
+      await captureIntent.clear();
       if (photo) await upload([photo]);
     } catch (err) {
+      await captureIntent.clear();
       setError(err instanceof Error ? err.message : 'Could not take that photo.');
     }
   };
@@ -66,11 +79,15 @@ export const PhotoGrid: React.FC<PhotoGridProps> = ({ callId, images, onImagesCh
     }
   };
 
+  // Private photos (the purchase bill) are saved with no public link — there
+  // is nothing to preview, and an empty uri makes <Image> warn.
+  const viewable = images.filter((img) => Boolean(img.secure_url));
+
   return (
     <View style={styles.container}>
-      {images.length > 0 ? (
+      {viewable.length > 0 ? (
         <View style={styles.grid}>
-          {images.map((img) => (
+          {viewable.map((img) => (
             <Image
               key={img.public_id}
               source={{ uri: img.secure_url }}

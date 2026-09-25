@@ -26,7 +26,10 @@ export type CapturePurpose =
   | 'product-video'
   | 'kyc-photo'
   | 'id-card-photo'
-  | 'skill-certificate';
+  | 'skill-certificate'
+  // Work photos on the Photos step — separate from 'job-photo' (the Product step) so a recovered photo reopens the right screen.
+  | 'work-photo'
+  | 'payment-proof';
 
 export interface CaptureIntent {
   purpose: CapturePurpose;

@@ -90,7 +90,7 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: '#CBD5E1',
     borderRadius: radius.lg,
     padding: spacing.lg,
     gap: spacing.xs,
@@ -129,7 +129,8 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   callButton: {
-    backgroundColor: colors.brandWash,
+    borderWidth: 1,
+    borderColor: colors.brand,
     borderRadius: radius.pill,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.xs,

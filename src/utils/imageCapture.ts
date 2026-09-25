@@ -41,7 +41,18 @@ export interface CapturedPhoto {
  * every full-size image in memory at once.
  */
 export const compressAsset = async (asset: ImagePicker.ImagePickerAsset): Promise<CapturedPhoto> => {
-  const context = ImageManipulator.manipulate(asset.uri).resize({ width: MAX_DIMENSION });
+  // Shrink only when the longer side is over the limit, along that side.
+  // Always resizing to 1600 wide enlarged anything smaller (a screenshot),
+  // and left a tall portrait photo well over 1600 high.
+  const width = asset.width || 0;
+  const height = asset.height || 0;
+  const context = ImageManipulator.manipulate(asset.uri);
+  if (!width || !height) {
+    // Size unknown — keep the old behaviour, which is safe for camera photos.
+    context.resize({ width: MAX_DIMENSION });
+  } else if (Math.max(width, height) > MAX_DIMENSION) {
+    context.resize(height > width ? { height: MAX_DIMENSION } : { width: MAX_DIMENSION });
+  }
   const rendered = await context.renderAsync();
   const result = await rendered.saveAsync({
     compress: COMPRESSION,

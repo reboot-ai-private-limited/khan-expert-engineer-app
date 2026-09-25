@@ -39,7 +39,7 @@ export interface JobStepDef {
   isDone: (call: EngineerCall) => boolean;
 }
 
-const hasWorkRecorded = (call: EngineerCall): boolean => {
+export const hasWorkRecorded = (call: EngineerCall): boolean => {
   const steppedWork = (call.stepResults ?? []).some((s) => (s.notes ?? '').trim().length > 0);
   return steppedWork || (call.remarks ?? '').trim().length > 0;
 };

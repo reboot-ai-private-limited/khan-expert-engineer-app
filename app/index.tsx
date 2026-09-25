@@ -1,24 +1,26 @@
-import React from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect } from 'react';
 import { Redirect } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
 import { useAuth } from '@/context/AuthContext';
 import { isAccountActive } from '@/utils/accountStatus';
-import { colors, spacing, typography } from '@/theme';
 
 /**
- * Entry gate. Holds the splash until the stored session has been read,
- * then routes once. Nothing else lives here.
+ * Entry gate. Holds the native splash screen until the stored session has
+ * been read, then routes once. Nothing else lives here.
  */
 export default function Index() {
   const { status, engineer } = useAuth();
 
+  useEffect(() => {
+    if (status !== 'restoring') {
+      void SplashScreen.hideAsync();
+    }
+  }, [status]);
+
   if (status === 'restoring') {
-    return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color={colors.brand} />
-        <Text style={[typography.small, styles.label]}>Loading…</Text>
-      </View>
-    );
+    // Render nothing — the native splash screen (app.json's
+    // expo-splash-screen config) is still covering this.
+    return null;
   }
 
   if (status !== 'authenticated') {
@@ -31,16 +33,3 @@ export default function Index() {
     <Redirect href="/(auth)/status" />
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-    gap: spacing.lg,
-  },
-  label: {
-    color: colors.textMuted,
-  },
-});

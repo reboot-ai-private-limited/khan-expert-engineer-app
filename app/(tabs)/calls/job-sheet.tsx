@@ -103,7 +103,8 @@ const JobSheetBody: React.FC<{ call: EngineerCall; onUpdated: (c: EngineerCall) 
   const services = call.engineerServices ?? [];
   const total = services.reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
   const steps = (call.stepResults ?? []).filter((s) => (s.notes ?? '').trim().length > 0);
-  const photos = call.service_images ?? [];
+  // Private photos (the purchase bill) have no public link to show here.
+  const photos = (call.service_images ?? []).filter((img) => Boolean(img.secure_url));
 
   const submit = async () => {
     if (submitting) return;

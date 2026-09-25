@@ -217,8 +217,13 @@ export interface EngineerCall {
   billNumber?: string;
   billAmount?: number;
   warrantyStatus?: WarrantyStatus;
+  /** Why the customer was charged although the job is under warranty. */
+  warrantyChargeReason?: WarrantyChargeReason;
+  warrantyChargeNote?: string;
   warrantyCheckedBy?: string;
   warrantyCheckedAt?: string;
+  /** End of cover as worked out at the warranty check. */
+  warrantyValidUntil?: string;
   warrantyDisputeReason?: string;
   productCorrections?: ProductCorrection[];
   engineerNotes?: EngineerNote[];
@@ -268,6 +273,9 @@ export interface UpdateEngineerCallPayload {
   cancelReason?: string;
   engineerServices?: EngineerServiceLine[];
   closerCode?: string;
+  /** Required by the server when a job under warranty is charged anything. */
+  warrantyChargeReason?: WarrantyChargeReason;
+  warrantyChargeNote?: string;
 }
 
 export interface UpdateEngineerCallResponse {
@@ -299,3 +307,38 @@ export interface EngineerCallListResponse {
   summary: EngineerCallSummary;
   calls: EngineerCall[];
 }
+
+/**
+ * Why a customer is charged on a job under warranty. Mirrors
+ * backend/src/utils/warrantyCharge.ts — the server refuses a charge on a
+ * warranty job without one.
+ */
+export type WarrantyChargeReason =
+  | 'physical_damage'
+  | 'consumables'
+  | 'non_warranty_part'
+  | 'visit_charge'
+  | 'extra_work'
+  | 'other';
+
+export const WARRANTY_CHARGE_REASONS: WarrantyChargeReason[] = [
+  'physical_damage',
+  'consumables',
+  'non_warranty_part',
+  'visit_charge',
+  'extra_work',
+  'other',
+];
+
+export const WARRANTY_CHARGE_REASON_LABEL: Record<WarrantyChargeReason, string> = {
+  physical_damage: 'Physical / liquid / voltage damage',
+  consumables: 'Consumables (gas, filters, etc.)',
+  non_warranty_part: 'Part not covered by warranty',
+  visit_charge: 'Visit / inspection charge',
+  extra_work: 'Extra work the customer asked for',
+  other: 'Other',
+};
+
+/** In warranty, including an extended warranty. */
+export const isUnderWarranty = (call: { warrantyStatus?: WarrantyStatus }): boolean =>
+  call.warrantyStatus === 'in_warranty' || call.warrantyStatus === 'extended';

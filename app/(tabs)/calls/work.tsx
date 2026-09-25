@@ -10,6 +10,7 @@ import { TextField } from '@/components/common/TextField';
 import { Notice } from '@/components/feedback/Notice';
 import { colors, spacing, typography } from '@/theme';
 import { isOfficeSet } from '@/utils/identityLock';
+import { hasWorkRecorded } from '@/utils/jobSteps';
 import type { EngineerCall, ServiceStep } from '@/types/call';
 
 /**
@@ -21,7 +22,10 @@ import type { EngineerCall, ServiceStep } from '@/types/call';
  */
 export default function WorkStepScreen() {
   return (
-    <StepScreen stepKey="work">
+    // Same rule the later required steps check (jobSteps.ts) — so Next only
+    // appears once they will actually open, instead of letting the engineer
+    // walk through Spares and Photos and hit a wall at Charges.
+    <StepScreen stepKey="work" canContinue={hasWorkRecorded}>
       {(call, applyUpdate) => <WorkBody call={call} onUpdated={applyUpdate} />}
     </StepScreen>
   );
@@ -76,6 +80,12 @@ const WorkBody: React.FC<{ call: EngineerCall; onUpdated: (c: EngineerCall) => v
     const usingChecklist = serviceSteps.length > 0;
     if (!usingChecklist && !remarks.trim()) {
       setError('Write what you did on this visit.');
+      return;
+    }
+    // A checklist saved with every step blank records no work, and the job
+    // cannot move on without some.
+    if (usingChecklist && !serviceSteps.some((s) => (stepInputs[s.order]?.notes ?? '').trim()) && !remarks.trim()) {
+      setError('Fill in at least one step with what you did.');
       return;
     }
 

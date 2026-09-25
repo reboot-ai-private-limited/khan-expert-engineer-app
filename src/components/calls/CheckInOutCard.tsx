@@ -15,6 +15,12 @@ import type { EngineerCall } from '@/types/call';
 interface CheckInOutCardProps {
   call: EngineerCall;
   onUpdated: (call: EngineerCall) => void;
+  /**
+   * Which half to show. The check-in step must not offer Checkout — it sat
+   * right under the selfie, and tapping it recorded "departure" before any
+   * work was done. Defaults to both, as before.
+   */
+  mode?: 'check-in' | 'check-out' | 'both';
 }
 
 const IMAGE_QUALITY = 0.5;
@@ -36,7 +42,9 @@ const getGpsFix = async (): Promise<Location.LocationObjectCoords> => {
  * succeed. Internally still called check-in/check-out — the route, API
  * endpoints and stored field names are unchanged, only the on-screen labels.
  */
-export const CheckInOutCard: React.FC<CheckInOutCardProps> = ({ call, onUpdated }) => {
+export const CheckInOutCard: React.FC<CheckInOutCardProps> = ({ call, onUpdated, mode = 'both' }) => {
+  const showCheckIn = mode !== 'check-out';
+  const showCheckOut = mode !== 'check-in';
   const [busy, setBusy] = useState<'in' | 'out' | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -151,6 +159,7 @@ export const CheckInOutCard: React.FC<CheckInOutCardProps> = ({ call, onUpdated 
 
   return (
     <View style={styles.card}>
+      {showCheckIn ? (
       <View style={styles.row}>
         <View style={styles.rowText}>
           <Text style={[typography.label, styles.label]}>Start work</Text>
@@ -166,9 +175,10 @@ export const CheckInOutCard: React.FC<CheckInOutCardProps> = ({ call, onUpdated 
           <Button label="Start work" onPress={doCheckIn} loading={busy === 'in'} loadingLabel="Starting…" />
         )}
       </View>
+      ) : null}
 
-      {call.checkIn ? (
-        <View style={[styles.row, styles.rowDivider]}>
+      {showCheckOut && call.checkIn ? (
+        <View style={[styles.row, showCheckIn && styles.rowDivider]}>
           <View style={styles.rowText}>
             <Text style={[typography.label, styles.label]}>Checkout</Text>
             {call.checkOut ? (

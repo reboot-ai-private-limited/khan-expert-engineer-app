@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import { capturePhoto } from '@/utils/imageCapture';
+import { captureIntent } from '@/services/storage/captureIntent';
+import { usePendingCapture } from '@/hooks/usePendingCapture';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { engineerCallsApi } from '@/api/endpoints/engineerCalls';
@@ -11,7 +13,7 @@ import { CollapsibleSection } from '@/components/common/CollapsibleSection';
 import { TextField } from '@/components/common/TextField';
 import { Notice } from '@/components/feedback/Notice';
 import { colors, radius, spacing, typography } from '@/theme';
-import type { EngineerCall } from '@/types/call';
+import { isUnderWarranty, type EngineerCall } from '@/types/call';
 
 interface PaymentCollectionCardProps {
   call: EngineerCall;
@@ -27,9 +29,14 @@ type Mode = 'cash' | 'upi' | 'mixed';
  * separate admin-only figure, entered later).
  */
 export const PaymentCollectionCard: React.FC<PaymentCollectionCardProps> = ({ call, onUpdated }) => {
+  // The bill from the Charges step — the amount to collect, so the engineer
+  // does not have to remember and re-type it.
+  const billDue = (call.engineerServices ?? []).reduce((sum, l) => sum + (Number(l.amount) || 0), 0);
+  const dueText = billDue > 0 ? String(billDue) : '';
+
   const [mode, setMode] = useState<Mode>('cash');
-  const [cashAmount, setCashAmount] = useState('');
-  const [onlineAmount, setOnlineAmount] = useState('');
+  const [cashAmount, setCashAmount] = useState(dueText);
+  const [onlineAmount, setOnlineAmount] = useState(dueText);
   const [onlineReference, setOnlineReference] = useState('');
   const [screenshot, setScreenshot] = useState<string | null>(null);
 
@@ -37,6 +44,22 @@ export const PaymentCollectionCard: React.FC<PaymentCollectionCardProps> = ({ ca
   const [qrLoading, setQrLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  /**
+   * Switching mode resets the amounts to what that mode should collect:
+   * the whole bill for cash or UPI; for mixed, all of it as cash to start,
+   * so the engineer moves part to online — never the bill twice over.
+   */
+  const selectMode = (next: Mode) => {
+    setMode(next);
+    setQrUri(null);
+    if (next === 'cash') setCashAmount(dueText);
+    if (next === 'upi') setOnlineAmount(dueText);
+    if (next === 'mixed') {
+      setCashAmount(dueText);
+      setOnlineAmount('');
+    }
+  };
 
   const showQr = async () => {
     setQrLoading(true);
@@ -51,11 +74,22 @@ export const PaymentCollectionCard: React.FC<PaymentCollectionCardProps> = ({ ca
     }
   };
 
+  // The UPI screenshot, if Android killed the app while the camera was
+  // open. The amounts typed before are gone with the app, so say so.
+  usePendingCapture('payment-proof', call._id, (dataUri) => {
+    setMode('upi');
+    setScreenshot(dataUri);
+    setError('The app restarted while the camera was open. Your screenshot was kept — check the amount before recording.');
+  });
+
   const captureScreenshot = async () => {
     try {
+      await captureIntent.set({ purpose: 'payment-proof', callId: call._id });
       const photo = await capturePhoto();
+      await captureIntent.clear();
       if (photo) setScreenshot(photo.dataUri);
     } catch (err) {
+      await captureIntent.clear();
       setError(err instanceof Error ? err.message : 'Could not take that photo.');
     }
   };
@@ -93,11 +127,48 @@ export const PaymentCollectionCard: React.FC<PaymentCollectionCardProps> = ({ ca
     );
   }
 
+  // A saved ₹0 bill — usually a free warranty job. There is nothing to
+  // collect, but the step still has to be closed off to complete the job.
+  const billLines = call.engineerServices ?? [];
+  const billTotal = billLines.reduce((sum, l) => sum + (Number(l.amount) || 0), 0);
+  if (billLines.length > 0 && billTotal === 0) {
+    const confirmNothing = async () => {
+      setError(null);
+      setSubmitting(true);
+      try {
+        onUpdated(await engineerCallsApi.submitPaymentCollection(call._id, { cashAmount: 0, onlineAmount: 0 }));
+      } catch (err) {
+        setError(isNetworkError(err) ? 'Could not reach the server. Try again once you have signal.' : (serverMessage(err) ?? 'Could not record this.'));
+      } finally {
+        setSubmitting(false);
+      }
+    };
+
+    return (
+      <CollapsibleSection title="Payment" summary="Nothing to collect" defaultExpanded>
+        <Notice
+          tone="success"
+          message={
+            isUnderWarranty(call)
+              ? 'Warranty job — the bill is ₹0, so there is nothing to collect.'
+              : 'The bill is ₹0, so there is nothing to collect.'
+          }
+          action="If the customer should pay something, change the Charges step first."
+        />
+        {error ? <Notice tone="error" message={error} /> : null}
+        <Button label="Confirm — nothing collected" loadingLabel="Saving…" onPress={confirmNothing} loading={submitting} />
+      </CollapsibleSection>
+    );
+  }
+
   return (
     <CollapsibleSection title="Payment" summary="Not recorded yet — tap to collect payment" defaultExpanded>
+      {billDue > 0 ? (
+        <Text style={[typography.bodyStrong, styles.dueLine]}>Bill total: ₹{billDue.toLocaleString('en-IN')}</Text>
+      ) : null}
       <View style={styles.modeRow}>
         {(['cash', 'upi', 'mixed'] as Mode[]).map((m) => (
-          <Pressable key={m} onPress={() => setMode(m)} style={[styles.modeButton, mode === m && styles.modeButtonActive]}>
+          <Pressable key={m} onPress={() => selectMode(m)} style={[styles.modeButton, mode === m && styles.modeButtonActive]}>
             <Text style={[typography.small, mode === m ? styles.modeTextActive : styles.modeText]}>{m.toUpperCase()}</Text>
           </Pressable>
         ))}
@@ -146,6 +217,9 @@ export const PaymentCollectionCard: React.FC<PaymentCollectionCardProps> = ({ ca
 };
 
 const styles = StyleSheet.create({
+  dueLine: {
+    color: colors.text,
+  },
   modeRow: {
     flexDirection: 'row',
     gap: spacing.sm,

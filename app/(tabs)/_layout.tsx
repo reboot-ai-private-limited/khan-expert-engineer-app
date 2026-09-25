@@ -7,6 +7,13 @@ import { useAuth } from '@/context/AuthContext';
 import { CallsProvider } from '@/context/CallsContext';
 import { TabBarButton } from '@/components/common/TabBarButton';
 import { canCompleteApplication } from '@/utils/accountStatus';
+import { useResumePendingCapture } from '@/hooks/useResumePendingCapture';
+
+/** Renders nothing — reopens the screen a photo was for after Android killed the app. See the hook. */
+const ResumePendingCapture: React.FC = () => {
+  useResumePendingCapture();
+  return null;
+};
 import { colors, typography } from '@/theme';
 
 export default function TabsLayout() {
@@ -32,6 +39,7 @@ export default function TabsLayout() {
 
   return (
     <CallsProvider>
+      <ResumePendingCapture />
       <Tabs
         screenOptions={{
           headerShown: false,

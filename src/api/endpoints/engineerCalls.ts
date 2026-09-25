@@ -54,6 +54,24 @@ export const engineerCallsApi = {
   },
 
   /**
+   * GET /api/engineer-calls?scope=closed
+   *
+   * The engineer's jobs the office has closed — shown as finished history,
+   * next to the ones marked "job done". Read-only on the device.
+   */
+  async getClosedCalls(): Promise<EngineerCall[]> {
+    const { data } = await api.get<EngineerCallListResponse>('/engineer-calls', {
+      params: { page: 1, limit: PAGE_LIMIT, scope: 'closed' },
+    });
+
+    if (!data?.success) {
+      throw new Error('The server returned an unexpected response.');
+    }
+
+    return data.calls;
+  },
+
+  /**
    * PUT /api/engineer-calls/:id
    *
    * The server enforces the rules that matter — an engineer cannot close or

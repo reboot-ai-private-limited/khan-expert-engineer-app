@@ -47,6 +47,10 @@ export default function EditProfileScreen() {
   const [district, setDistrict] = useState('');
   const [state, setState] = useState('');
   const [pincode, setPincode] = useState('');
+  const [bankName, setBankName] = useState('');
+  const [bankAccountNumber, setBankAccountNumber] = useState('');
+  const [bankIfscCode, setBankIfscCode] = useState('');
+  const [gstin, setGstin] = useState('');
   const [engineerType, setEngineerType] = useState<EngineerType>('freelance');
 
   const [saving, setSaving] = useState(false);
@@ -76,6 +80,10 @@ export default function EditProfileScreen() {
         setDistrict(fresh.address?.district ?? '');
         setState(fresh.address?.state ?? '');
         setPincode(fresh.address?.pincode ?? '');
+        setBankName(fresh.bankName ?? '');
+        setBankAccountNumber(fresh.bankAccountNumber ?? '');
+        setBankIfscCode(fresh.bankIfscCode ?? '');
+        setGstin(fresh.gstin ?? '');
         if (fresh.engineerType === 'freelance' || fresh.engineerType === 'service_center') {
           setEngineerType(fresh.engineerType);
         }
@@ -101,6 +109,14 @@ export default function EditProfileScreen() {
     if (saving) return;
     setError(null);
     setSaved(false);
+
+    // Same rule as registration: a service center must have a GSTIN.
+    const isServiceCenter = isExternal(engineer?.engineerType) && engineerType === 'service_center';
+    if (isServiceCenter && !gstin.trim()) {
+      setError('GSTIN is required for a service center.');
+      return;
+    }
+
     setSaving(true);
 
     try {
@@ -113,9 +129,14 @@ export default function EditProfileScreen() {
         district: district.trim(),
         state: state.trim(),
         pincode: pincode.trim(),
+        bankName: bankName.trim(),
+        bankAccountNumber: bankAccountNumber.trim(),
+        bankIfscCode: bankIfscCode.trim(),
         // Only offered to engineers who are already one of the external
         // types — in-house staff never see the picker, so never send it.
         ...(isExternal(engineer?.engineerType) ? { engineerType } : {}),
+        // Only a service center has a GSTIN; a freelancer's stored one is left untouched.
+        ...(isServiceCenter ? { gstin: gstin.trim() } : {}),
       });
       setSaved(true);
     } catch (err) {
@@ -224,6 +245,16 @@ export default function EditProfileScreen() {
                     );
                   })}
                 </View>
+                {engineerType === 'service_center' ? (
+                  <TextField
+                    label="GSTIN"
+                    value={gstin}
+                    onChangeText={(t) => setGstin(t.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 15))}
+                    autoCapitalize="characters"
+                    autoCorrect={false}
+                    placeholder="e.g. 22AAAAA0000A1Z5"
+                  />
+                ) : null}
               </View>
             ) : (
               <ReadOnlyRow
@@ -242,6 +273,31 @@ export default function EditProfileScreen() {
             <Text style={[typography.caption, styles.hint]}>
               Your skills are managed separately, under Profile → My skills.
             </Text>
+          </Section>
+
+          <Section title="Bank details">
+            <TextField
+              label="Bank name"
+              value={bankName}
+              onChangeText={setBankName}
+              autoCapitalize="words"
+              placeholder="e.g. State Bank of India"
+            />
+            <TextField
+              label="Bank account number"
+              value={bankAccountNumber}
+              onChangeText={(t) => setBankAccountNumber(t.replace(/[^0-9]/g, ''))}
+              keyboardType="number-pad"
+              placeholder="For paying you by bank transfer"
+            />
+            <TextField
+              label="IFSC code"
+              value={bankIfscCode}
+              onChangeText={(t) => setBankIfscCode(t.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 11))}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              placeholder="e.g. SBIN0001234"
+            />
           </Section>
 
           <Button
