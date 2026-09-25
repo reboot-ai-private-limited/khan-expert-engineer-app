@@ -1,13 +1,33 @@
 import React, { useEffect, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Button } from '@/components/common/Button';
 import { useAuth } from '@/context/AuthContext';
 import { idCardApi } from '@/api/endpoints/idCard';
 import { ENGINEER_TYPE_LABELS } from '@/types/auth';
 import { colors, radius, spacing, typography } from '@/theme';
+
+type IconName = keyof typeof Ionicons.glyphMap;
+
+/** The same tinted icon chips as the home screen tiles. */
+const TINT = {
+  blue: { accent: '#1D6FE0', chip: '#DCEAFE' },
+  purple: { accent: '#4C3AA8', chip: '#E5E0FA' },
+  amber: { accent: '#C98A00', chip: '#FDEFC4' },
+  green: { accent: '#0F8A5F', chip: '#D5F3E6' },
+  red: { accent: '#E0344B', chip: '#FDDDE1' },
+  slate: { accent: '#1E293B', chip: '#E2E8F0' },
+} as const;
+type Tint = keyof typeof TINT;
+
+/** "rajdeep majumdar" → "Rajdeep Majumdar" — names are stored as typed. */
+const titleCase = (name: string) =>
+  name
+    .trim()
+    .split(/\s+/)
+    .map((word) => (word ? word[0].toUpperCase() + word.slice(1) : word))
+    .join(' ');
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -39,197 +59,325 @@ export default function ProfileScreen() {
     }
   };
 
+  const displayName = engineer?.name ? titleCase(engineer.name) : 'Engineer';
+  const accountType = engineer?.engineerType ? ENGINEER_TYPE_LABELS[engineer.engineerType] : undefined;
+
   return (
+    // The inset sits outside the scroll view, so content scrolls under a
+    // clean edge instead of up behind the clock and battery icons.
+    <View style={[styles.screen, { paddingTop: insets.top }]}>
     <ScrollView
-      style={styles.screen}
+      style={styles.scroll}
       contentContainerStyle={[
         styles.container,
-        { paddingTop: insets.top + spacing.xl, paddingBottom: insets.bottom + spacing.xxl },
+        { paddingTop: spacing.lg, paddingBottom: insets.bottom + spacing.xxl },
       ]}
     >
-      <Text style={[typography.title, styles.title]}>Profile</Text>
+      {/* Header — tapping the photo opens ID cards, where it is changed. */}
+      <View style={styles.header}>
+        <View style={[styles.bubble, styles.bubbleLarge]} />
+        <View style={[styles.bubble, styles.bubbleSmall]} />
 
-      <Pressable
-        onPress={() => router.push('/(tabs)/profile/id-cards')}
-        accessibilityRole="button"
-        accessibilityLabel="Profile photo — tap to change"
-        style={styles.photoRow}
-      >
-        <View style={styles.photoWrap}>
+        <Pressable
+          onPress={() => router.push('/(tabs)/profile/id-cards')}
+          accessibilityRole="button"
+          accessibilityLabel={photoUrl ? 'Profile photo — tap to change' : 'Add a profile photo'}
+          style={styles.avatarWrap}
+        >
           {photoUrl ? (
-            <Image source={{ uri: photoUrl }} style={styles.photo} />
+            <Image source={{ uri: photoUrl }} style={styles.avatar} />
           ) : (
-            <View style={[styles.photo, styles.photoFallback]}>
-              <Text style={styles.photoInitial}>{engineer?.name?.trim()?.charAt(0)?.toUpperCase() || '?'}</Text>
+            <View style={[styles.avatar, styles.avatarFallback]}>
+              <Text style={styles.avatarInitial}>{displayName.charAt(0)}</Text>
             </View>
           )}
-        </View>
-        <View style={styles.photoText}>
-          <Text style={[typography.bodyStrong, styles.photoLabel]}>Profile photo</Text>
-          <Text style={[typography.caption, styles.photoHint]}>{photoUrl ? 'Tap to change' : 'Tap to add a photo'}</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={18} color={colors.textFaint} />
-      </Pressable>
+          <View style={styles.cameraBadge}>
+            <Ionicons name="camera" size={13} color={colors.brand} />
+          </View>
+        </Pressable>
 
+        <View style={styles.headerText}>
+          <Text style={styles.name} numberOfLines={1}>
+            {displayName}
+          </Text>
+          {engineer?.engineerCode ? (
+            <View style={styles.codePill}>
+              <Text style={styles.codeText}>{engineer.engineerCode}</Text>
+            </View>
+          ) : null}
+          {accountType ? (
+            <Text style={styles.headerSub} numberOfLines={1}>
+              {accountType}
+            </Text>
+          ) : null}
+        </View>
+      </View>
+
+      {/* Details */}
       <View style={styles.card}>
-        <Text style={[typography.label, styles.cardHeaderLabel]}>Your details</Text>
+        <Text style={styles.cardTitle}>Your details</Text>
+        <DetailRow icon="call" tint="green" label="Phone" value={engineer?.phone} />
+        <DetailRow icon="mail" tint="blue" label="Email" value={engineer?.email} />
+        <DetailRow icon="id-card" tint="purple" label="Engineer ID" value={engineer?.engineerCode} />
+        <DetailRow icon="briefcase" tint="amber" label="Account type" value={accountType} last />
+      </View>
 
-        <Row label="Engineer ID" value={engineer?.engineerCode} />
-        <Row label="Name" value={engineer?.name} />
-        <Row label="Phone" value={engineer?.phone} />
-        {engineer?.email ? <Row label="Email" value={engineer.email} /> : null}
-        <Row
-          label="Account type"
-          value={engineer?.engineerType ? ENGINEER_TYPE_LABELS[engineer.engineerType] : undefined}
+      {/* Menu */}
+      <View style={styles.card}>
+        <MenuRow icon="create" tint="blue" label="Edit profile" onPress={() => router.push('/(tabs)/profile/edit')} />
+        <MenuRow icon="wallet" tint="amber" label="Wallet" onPress={() => router.push('/(tabs)/profile/wallet')} />
+        <MenuRow icon="construct" tint="green" label="My skills" onPress={() => router.push('/(tabs)/profile/skills')} />
+        <MenuRow icon="shield-checkmark" tint="red" label="KYC documents" onPress={() => router.push('/(tabs)/profile/kyc')} />
+        <MenuRow icon="card" tint="slate" label="ID cards" onPress={() => router.push('/(tabs)/profile/id-cards')} />
+        <MenuRow
+          icon="lock-closed"
+          tint="purple"
+          label="Change password"
+          onPress={() => router.push('/(tabs)/profile/password')}
+          last
         />
       </View>
 
-      <View style={styles.menu}>
-        <MenuRow label="Edit profile" onPress={() => router.push('/(tabs)/profile/edit')} />
-        <MenuRow label="Change password" onPress={() => router.push('/(tabs)/profile/password')} />
-        <MenuRow label="Wallet" onPress={() => router.push('/(tabs)/profile/wallet')} />
-        <MenuRow label="My skills" onPress={() => router.push('/(tabs)/profile/skills')} />
-        <MenuRow label="KYC documents" onPress={() => router.push('/(tabs)/profile/kyc')} />
-        <MenuRow label="ID cards" onPress={() => router.push('/(tabs)/profile/id-cards')} />
-      </View>
-
-      <Button
-        label="Sign out"
-        variant="secondary"
+      <Pressable
         onPress={handleLogout}
-        loading={signingOut}
-        loadingLabel="Signing out…"
-        style={styles.signOut}
-      />
+        disabled={signingOut}
+        accessibilityRole="button"
+        accessibilityLabel="Sign out"
+        style={({ pressed }) => [styles.signOut, pressed && styles.pressed]}
+      >
+        {signingOut ? (
+          <ActivityIndicator size="small" color={colors.danger} />
+        ) : (
+          <Ionicons name="log-out-outline" size={20} color={colors.danger} />
+        )}
+        <Text style={styles.signOutText}>{signingOut ? 'Signing out…' : 'Sign out'}</Text>
+      </Pressable>
     </ScrollView>
+    </View>
   );
 }
 
-const Row: React.FC<{ label: string; value?: string }> = ({ label, value }) => (
-  <View style={styles.row}>
-    <Text style={[typography.label, styles.rowLabel]}>{label}</Text>
-    <Text style={[typography.body, styles.rowValue]}>{value || '—'}</Text>
+const IconChip: React.FC<{ icon: IconName; tint: Tint }> = ({ icon, tint }) => (
+  <View style={[styles.chip, { backgroundColor: TINT[tint].chip }]}>
+    <Ionicons name={icon} size={18} color={TINT[tint].accent} />
   </View>
 );
 
-const MenuRow: React.FC<{ label: string; onPress: () => void }> = ({ label, onPress }) => (
+const DetailRow: React.FC<{ icon: IconName; tint: Tint; label: string; value?: string; last?: boolean }> = ({
+  icon,
+  tint,
+  label,
+  value,
+  last,
+}) => (
+  <View style={[styles.row, !last && styles.rowDivider]}>
+    <IconChip icon={icon} tint={tint} />
+    <View style={styles.rowText}>
+      <Text style={styles.rowLabel}>{label}</Text>
+      <Text style={styles.rowValue} numberOfLines={1}>
+        {value || '—'}
+      </Text>
+    </View>
+  </View>
+);
+
+const MenuRow: React.FC<{ icon: IconName; tint: Tint; label: string; onPress: () => void; last?: boolean }> = ({
+  icon,
+  tint,
+  label,
+  onPress,
+  last,
+}) => (
   <Pressable
     onPress={onPress}
     accessibilityRole="button"
     accessibilityLabel={label}
-    style={({ pressed }) => [styles.menuRow, pressed && styles.menuRowPressed]}
+    style={({ pressed }) => [styles.row, !last && styles.rowDivider, pressed && styles.pressed]}
   >
-    <Text style={[typography.bodyStrong, styles.menuRowLabel]}>{label}</Text>
-    <Text style={styles.menuRowChevron}>›</Text>
+    <IconChip icon={icon} tint={tint} />
+    <Text style={styles.menuLabel}>{label}</Text>
+    <Ionicons name="chevron-forward" size={18} color={colors.textFaint} />
   </Pressable>
 );
 
 const styles = StyleSheet.create({
+  scroll: {
+    flex: 1,
+  },
   screen: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#EEF3F9',
   },
   container: {
     flexGrow: 1,
-    paddingHorizontal: spacing.xl,
-    gap: spacing.xl,
+    paddingHorizontal: spacing.lg,
+    gap: spacing.lg,
   },
-  title: {
-    color: colors.text,
-  },
-  photoRow: {
+
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    gap: spacing.lg,
+    backgroundColor: colors.brand,
+    borderRadius: 22,
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.xl,
+    overflow: 'hidden',
   },
-  photoWrap: {
-    width: 52,
-    height: 52,
+  // Soft lighter shapes, echoing the home banner's background.
+  bubble: {
+    position: 'absolute',
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.10)',
   },
-  photo: {
-    width: 52,
-    height: 52,
-    borderRadius: radius.pill,
+  bubbleLarge: {
+    width: 180,
+    height: 180,
+    top: -70,
+    right: -50,
   },
-  photoFallback: {
+  bubbleSmall: {
+    width: 110,
+    height: 110,
+    bottom: -60,
+    right: 70,
+  },
+  avatarWrap: {
+    width: 76,
+    height: 76,
+  },
+  avatar: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    borderWidth: 3,
+    borderColor: 'rgba(255,255,255,0.85)',
+  },
+  avatarFallback: {
     backgroundColor: colors.brandWash,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  photoInitial: {
-    fontSize: 20,
-    fontWeight: '700',
+  avatarInitial: {
+    fontSize: 30,
+    fontWeight: '800',
     color: colors.brand,
   },
-  photoText: {
+  cameraBadge: {
+    position: 'absolute',
+    right: -2,
+    bottom: -2,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: colors.brand,
+  },
+  headerText: {
     flex: 1,
-    gap: 2,
+    gap: 4,
   },
-  photoLabel: {
-    color: colors.text,
+  name: {
+    color: colors.textOnBrand,
+    fontSize: 22,
+    lineHeight: 28,
+    fontWeight: '800',
   },
-  photoHint: {
-    color: colors.textMuted,
+  codePill: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
   },
+  codeText: {
+    ...typography.caption,
+    color: colors.textOnBrand,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  headerSub: {
+    ...typography.small,
+    color: colors.textOnBrand,
+    opacity: 0.9,
+  },
+
   card: {
     backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
-    borderRadius: radius.md,
+    borderColor: '#E3E9F2',
+    borderRadius: radius.lg,
     paddingHorizontal: spacing.lg,
-    // The heading sat flush against the card edge without this.
-    paddingTop: spacing.lg,
+    paddingVertical: spacing.xs,
+    shadowColor: '#0B192C',
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
   },
-  cardHeaderLabel: {
+  cardTitle: {
+    ...typography.label,
     color: colors.textMuted,
-    marginBottom: spacing.sm,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xs,
   },
   row: {
-    // Read-only text, not a tap target — it does not need the roomy
-    // vertical rhythm the menu rows below use.
-    paddingVertical: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingVertical: 10,
+  },
+  rowDivider: {
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.borderSoft,
-    gap: 2,
+    borderBottomColor: '#E3E9F2',
+  },
+  chip: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rowText: {
+    flex: 1,
+    gap: 1,
   },
   rowLabel: {
+    ...typography.caption,
     color: colors.textMuted,
   },
   rowValue: {
+    ...typography.body,
     color: colors.text,
+    fontWeight: '600',
   },
-  menu: {
-    gap: spacing.md,
+  menuLabel: {
+    ...typography.body,
+    flex: 1,
+    color: colors.text,
+    fontWeight: '600',
   },
-  menuRow: {
+  pressed: {
+    opacity: 0.7,
+  },
+
+  signOut: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.lg,
-  },
-  menuRowPressed: {
-    backgroundColor: colors.sunken,
-  },
-  menuRowLabel: {
-    color: colors.text,
-  },
-  menuRowChevron: {
-    fontSize: 20,
-    color: colors.textFaint,
-  },
-  signOut: {
+    justifyContent: 'center',
+    gap: spacing.sm,
+    borderWidth: 1.5,
+    borderColor: '#F5C2C9',
+    backgroundColor: '#FFF5F6',
+    borderRadius: radius.lg,
+    paddingVertical: spacing.md,
     marginTop: 'auto',
-    marginBottom: spacing.xxl,
+  },
+  signOutText: {
+    ...typography.bodyStrong,
+    color: colors.danger,
   },
 });
