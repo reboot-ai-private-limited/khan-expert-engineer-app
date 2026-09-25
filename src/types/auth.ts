@@ -53,6 +53,8 @@ export interface EngineerProfile {
   bankIfscCode?: string;
   /** GST registration number. Only meaningful for a 'service_center' engineerType. */
   gstin?: string;
+  /** Business name, only for a 'service_center' engineerType. */
+  serviceCenterName?: string;
   /** The rejection reason, or what to fix for a changes-requested decision. */
   reviewNote?: string;
 }
@@ -77,6 +79,7 @@ export interface UpdateProfileRequest {
   bankAccountNumber?: string;
   bankIfscCode?: string;
   gstin?: string;
+  serviceCenterName?: string;
   engineerType?: EngineerType;
 }
 
@@ -126,6 +129,8 @@ export interface RegisterRequest {
   bankIfscCode?: string;
   /** Required by the server when engineerType is 'service_center'. */
   gstin?: string;
+  /** Required by the server when engineerType is 'service_center'. */
+  serviceCenterName?: string;
   skillIds?: string[];
   engineerType?: EngineerType;
 }
@@ -163,6 +168,7 @@ export interface RegistrationStatusResponse {
     bankAccountNumber?: string;
     bankIfscCode?: string;
     gstin?: string;
+    serviceCenterName?: string;
   };
 }
 

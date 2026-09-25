@@ -38,6 +38,7 @@ export default function RegisterScreen() {
   const [bankAccountNumber, setBankAccountNumber] = useState('');
   const [bankIfscCode, setBankIfscCode] = useState('');
   const [gstin, setGstin] = useState('');
+  const [serviceCenterName, setServiceCenterName] = useState('');
   const [engineerType, setEngineerType] = useState<EngineerType>('freelance');
   const [consent, setConsent] = useState(false);
 
@@ -52,6 +53,9 @@ export default function RegisterScreen() {
     if (!password) next.password = 'Choose a password.';
     else if (password.length < 6) next.password = 'At least 6 characters.';
     if (confirmPassword !== password) next.confirmPassword = 'Passwords do not match.';
+    if (engineerType === 'service_center' && !serviceCenterName.trim()) {
+      next.serviceCenterName = 'Enter your service center name.';
+    }
     if (engineerType === 'service_center' && !gstin.trim()) {
       next.gstin = 'GSTIN is required for a service center application.';
     }
@@ -84,6 +88,8 @@ export default function RegisterScreen() {
         bankAccountNumber: bankAccountNumber.trim() || undefined,
         bankIfscCode: bankIfscCode.trim() || undefined,
         gstin: gstin.trim() || undefined,
+        // Only sent for a service center — switching back to freelance drops it.
+        serviceCenterName: engineerType === 'service_center' ? serviceCenterName.trim() || undefined : undefined,
       });
       // AuthContext flips to 'authenticated'; the (auth) layout routes a
       // pending account straight to /status — no manual navigation here.
@@ -175,6 +181,18 @@ export default function RegisterScreen() {
               })}
             </View>
           </View>
+
+          {engineerType === 'service_center' ? (
+            <TextField
+              label="Service center name"
+              value={serviceCenterName}
+              onChangeText={setServiceCenterName}
+              error={fieldErrors.serviceCenterName}
+              autoCapitalize="words"
+              maxLength={100}
+              placeholder="e.g. Sharma Electronics"
+            />
+          ) : null}
 
           {engineerType === 'service_center' ? (
             <TextField

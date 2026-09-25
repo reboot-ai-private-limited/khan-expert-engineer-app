@@ -5,6 +5,13 @@ import * as SplashScreen from 'expo-splash-screen';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from '@/context/AuthContext';
 import { colors } from '@/theme';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
+
+/** Renders nothing — registers for push once signed in and routes notification taps. */
+const PushNotifications: React.FC = () => {
+  usePushNotifications();
+  return null;
+};
 
 // Held open until app/index.tsx knows where to route — see its
 // SplashScreen.hideAsync() call. Keeps the native splash on screen through
@@ -15,6 +22,7 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
+        <PushNotifications />
         {/* Edge-to-edge is the default in SDK 57, so the bar draws over the
             app background — `backgroundColor` no longer exists on this prop. */}
         <StatusBar style="dark" />

@@ -152,6 +152,16 @@ export default function ProfileScreen() {
         )}
         <Text style={styles.signOutText}>{signingOut ? 'Signing out…' : 'Sign out'}</Text>
       </Pressable>
+
+      <Pressable
+        onPress={() => router.push('/(tabs)/profile/delete-account')}
+        hitSlop={8}
+        accessibilityRole="button"
+        accessibilityLabel="Delete account"
+        style={({ pressed }) => [styles.deleteLink, pressed && styles.pressed]}
+      >
+        <Text style={styles.deleteLinkText}>Delete account</Text>
+      </Pressable>
     </ScrollView>
     </View>
   );
@@ -379,5 +389,15 @@ const styles = StyleSheet.create({
   signOutText: {
     ...typography.bodyStrong,
     color: colors.danger,
+  },
+  deleteLink: {
+    alignSelf: 'center',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+  },
+  deleteLinkText: {
+    ...typography.small,
+    color: colors.textMuted,
+    textDecorationLine: 'underline',
   },
 });

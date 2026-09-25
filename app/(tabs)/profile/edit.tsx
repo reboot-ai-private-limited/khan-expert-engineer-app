@@ -51,6 +51,7 @@ export default function EditProfileScreen() {
   const [bankAccountNumber, setBankAccountNumber] = useState('');
   const [bankIfscCode, setBankIfscCode] = useState('');
   const [gstin, setGstin] = useState('');
+  const [serviceCenterName, setServiceCenterName] = useState('');
   const [engineerType, setEngineerType] = useState<EngineerType>('freelance');
 
   const [saving, setSaving] = useState(false);
@@ -84,6 +85,7 @@ export default function EditProfileScreen() {
         setBankAccountNumber(fresh.bankAccountNumber ?? '');
         setBankIfscCode(fresh.bankIfscCode ?? '');
         setGstin(fresh.gstin ?? '');
+        setServiceCenterName(fresh.serviceCenterName ?? '');
         if (fresh.engineerType === 'freelance' || fresh.engineerType === 'service_center') {
           setEngineerType(fresh.engineerType);
         }
@@ -110,8 +112,12 @@ export default function EditProfileScreen() {
     setError(null);
     setSaved(false);
 
-    // Same rule as registration: a service center must have a GSTIN.
+    // Same rules as registration: a service center must have a name and a GSTIN.
     const isServiceCenter = isExternal(engineer?.engineerType) && engineerType === 'service_center';
+    if (isServiceCenter && !serviceCenterName.trim()) {
+      setError('Enter your service center name.');
+      return;
+    }
     if (isServiceCenter && !gstin.trim()) {
       setError('GSTIN is required for a service center.');
       return;
@@ -136,7 +142,7 @@ export default function EditProfileScreen() {
         // types — in-house staff never see the picker, so never send it.
         ...(isExternal(engineer?.engineerType) ? { engineerType } : {}),
         // Only a service center has a GSTIN; a freelancer's stored one is left untouched.
-        ...(isServiceCenter ? { gstin: gstin.trim() } : {}),
+        ...(isServiceCenter ? { gstin: gstin.trim(), serviceCenterName: serviceCenterName.trim() } : {}),
       });
       setSaved(true);
     } catch (err) {
@@ -245,6 +251,16 @@ export default function EditProfileScreen() {
                     );
                   })}
                 </View>
+                {engineerType === 'service_center' ? (
+                  <TextField
+                    label="Service center name"
+                    value={serviceCenterName}
+                    onChangeText={setServiceCenterName}
+                    autoCapitalize="words"
+                    maxLength={100}
+                    placeholder="e.g. Sharma Electronics"
+                  />
+                ) : null}
                 {engineerType === 'service_center' ? (
                   <TextField
                     label="GSTIN"

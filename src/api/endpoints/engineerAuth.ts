@@ -156,6 +156,22 @@ export const engineerAuthApi = {
     }
   },
 
+  /**
+   * POST /api/engineer-auth/delete-account — asks the office to delete this
+   * account. The server signs the engineer out everywhere as soon as it's
+   * accepted, so the caller should log out locally right after.
+   */
+  async requestAccountDeletion(payload: { password: string; reason?: string }): Promise<void> {
+    try {
+      await api.post('/engineer-auth/delete-account', payload);
+    } catch (error) {
+      if (isNetworkError(error)) {
+        throw new AuthError('network', friendlyMessage('network'), true);
+      }
+      throw new AuthError('server', serverMessage(error) ?? 'Could not send your request. Try again.', true);
+    }
+  },
+
   async validateSession(): Promise<SessionCheck> {
     try {
       const { data } = await api.get<{ success: boolean; engineer: EngineerProfile }>('/engineer-auth/profile');

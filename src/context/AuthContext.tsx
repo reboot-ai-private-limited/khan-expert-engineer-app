@@ -10,6 +10,7 @@ import React, {
 import { engineerAuthApi } from '@/api/endpoints/engineerAuth';
 import { setUnauthorizedHandler } from '@/api/client';
 import { sessionStorage } from '@/services/storage/secureStore';
+import { unregisterPushNotifications } from '@/services/notifications/pushNotifications';
 import {
   AuthError,
   type AuthStatus,
@@ -217,6 +218,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
    * logout today. Noted in docs/specs/10-api-contract.md.
    */
   const logout = useCallback(async () => {
+    // First, while the session token still authorises the call — this phone
+    // should stop receiving this engineer's notifications.
+    await unregisterPushNotifications();
     await endSession(null);
   }, [endSession]);
 
