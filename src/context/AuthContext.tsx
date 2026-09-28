@@ -25,7 +25,8 @@ interface AuthContextValue {
   engineer: EngineerProfile | null;
   /** Set when the session ended on its own, so the login screen can explain why. */
   sessionEndedReason: string | null;
-  login: (loginId: string, password: string) => Promise<void>;
+  /** Signs in with the WhatsApp code sent by engineerAuthApi.sendOtp(phone, 'login'). */
+  login: (phone: string, otp: string) => Promise<void>;
   /** Submits a new application and signs the engineer straight in, pending review. */
   register: (payload: RegisterRequest) => Promise<void>;
   /** Saves a self-service profile edit and adopts the server's copy of the result. */
@@ -123,17 +124,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [endSession]);
 
-  const login = useCallback(async (loginId: string, password: string) => {
-    const trimmedId = loginId.trim();
+  const login = useCallback(async (phone: string, otp: string) => {
+    const trimmedId = phone.trim();
 
-    if (!trimmedId || !password) {
-      throw new AuthError(
-        'missing_credentials',
-        'Enter your phone number or email, and your password.'
-      );
+    if (!trimmedId || !otp.trim()) {
+      throw new AuthError('missing_credentials', 'Enter your phone number and the code sent to your WhatsApp.');
     }
 
-    const response = await engineerAuthApi.login({ loginId: trimmedId, password });
+    const response = await engineerAuthApi.login({ phone: trimmedId, otp });
 
     // Persist before flipping state, so a restart cannot land in a
     // signed-in UI with no stored token.

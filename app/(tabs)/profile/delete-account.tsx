@@ -3,7 +3,9 @@ import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleShee
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { Button } from '@/components/common/Button';
 import { TextField } from '@/components/common/TextField';
+import { useOtpSender } from '@/hooks/useOtpSender';
 import { Notice } from '@/components/feedback/Notice';
 import { engineerAuthApi } from '@/api/endpoints/engineerAuth';
 import { useAuth } from '@/context/AuthContext';
@@ -20,19 +22,31 @@ import { colors, radius, spacing, typography } from '@/theme';
  */
 export default function DeleteAccountScreen() {
   const insets = useSafeAreaInsets();
-  const { logout } = useAuth();
+  const { logout, engineer } = useAuth();
+  const otp = useOtpSender('delete_account');
 
-  const [password, setPassword] = useState('');
+  const [code, setCode] = useState('');
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [passwordError, setPasswordError] = useState<string | undefined>();
+  const [codeError, setCodeError] = useState<string | undefined>();
+
+  const sendCode = async () => {
+    if (!engineer?.phone) return;
+    setError(null);
+    try {
+      await otp.send(engineer.phone);
+      setCode('');
+    } catch (err) {
+      setError(err instanceof AuthError ? err.message : 'Could not send the code. Try again.');
+    }
+  };
 
   const submit = async () => {
     setSubmitting(true);
     setError(null);
     try {
-      await engineerAuthApi.requestAccountDeletion({ password, reason: reason.trim() || undefined });
+      await engineerAuthApi.requestAccountDeletion({ otp: code, reason: reason.trim() || undefined });
       Alert.alert(
         'Request received',
         'You have been signed out. Your personal data will be erased within 30 days. Contact the office if you change your mind.',
@@ -47,11 +61,11 @@ export default function DeleteAccountScreen() {
 
   const confirm = () => {
     if (submitting) return;
-    if (!password) {
-      setPasswordError('Enter your password to confirm.');
+    if (code.length !== 6) {
+      setCodeError(otp.sentTo ? 'Enter the 6-digit code from WhatsApp.' : 'Send a code to your WhatsApp first.');
       return;
     }
-    setPasswordError(undefined);
+    setCodeError(undefined);
     Alert.alert(
       'Delete your account?',
       'You will be signed out and will not be able to sign in again with this account.',
@@ -110,14 +124,25 @@ export default function DeleteAccountScreen() {
           multiline
           maxLength={500}
         />
+        {otp.message ? <Notice tone="info" message={otp.message} /> : null}
+        <Button
+          label={otp.sentTo ? (otp.canResend ? 'Resend code' : `Resend in ${otp.secondsLeft}s`) : 'Send code on WhatsApp'}
+          loadingLabel="Sending…"
+          variant="secondary"
+          onPress={sendCode}
+          loading={otp.sending}
+          disabled={!!otp.sentTo && !otp.canResend}
+        />
         <TextField
-          label="Password"
-          value={password}
-          onChangeText={setPassword}
-          error={passwordError}
-          hint="Enter your password to confirm it's you."
-          secure
-          autoCapitalize="none"
+          label="6-digit code"
+          value={code}
+          onChangeText={(t) => setCode(t.replace(/\D/g, '').slice(0, 6))}
+          error={codeError}
+          hint="We send a code to your WhatsApp to confirm it's you."
+          keyboardType="number-pad"
+          autoComplete="one-time-code"
+          textContentType="oneTimeCode"
+          maxLength={6}
         />
 
         <Pressable

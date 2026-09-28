@@ -89,17 +89,21 @@ export interface UpdateProfileResponse {
   engineer: EngineerProfile;
 }
 
-/** PUT /api/engineer-auth/password */
-export interface ChangePasswordRequest {
-  currentPassword: string;
-  newPassword: string;
+/** What a WhatsApp code is for — the server keeps one code per number per purpose. */
+export type OtpPurpose = 'login' | 'register' | 'delete_account';
+
+/** POST /api/engineer-auth/otp/send */
+export interface SendOtpResponse {
+  success: boolean;
+  message: string;
+  expiresInSeconds: number;
+  resendAfterSeconds: number;
 }
 
-/** POST /api/engineer-auth/login */
+/** POST /api/engineer-auth/login/otp */
 export interface LoginRequest {
-  /** Phone number or email. The backend reads this exact key. */
-  loginId: string;
-  password: string;
+  phone: string;
+  otp: string;
 }
 
 export interface LoginResponse {
@@ -114,7 +118,8 @@ export interface RegisterRequest {
   name: string;
   phone: string;
   email?: string;
-  password: string;
+  /** The WhatsApp code sent for purpose 'register' — proves the phone is theirs. */
+  otp: string;
   route?: string;
   yearsOfExperience?: number;
   addressLine1?: string;
@@ -202,7 +207,10 @@ export type AuthErrorCode =
   | 'missing_credentials'
   | 'invalid_credentials'
   | 'account_inactive'
-  | 'password_not_set'
+  /** No engineer account uses this phone number. */
+  | 'not_registered'
+  /** Asked for codes too quickly — wait and retry. */
+  | 'rate_limited'
   | 'network'
   | 'server'
   | 'config'

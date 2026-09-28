@@ -19,70 +19,88 @@ import {
   type RegisterResponse,
   type RegistrationStatusResponse,
   type ResubmitRequest,
-  type ChangePasswordRequest,
+  type OtpPurpose,
+  type SendOtpResponse,
   type UpdateProfileRequest,
   type UpdateProfileResponse,
 } from '@/types/auth';
 
 /**
- * The backend returns prose, not codes. Map its messages to stable codes
+ * The backend returns prose, not codes. Map status codes to stable codes
  * once, here, so screens never match on message strings.
  *
- * Source: backend/src/controllers/engineerAuthController.ts
+ * Source: backend/src/controllers/engineerOtpController.ts
  */
 const classify = (status: number | undefined, message?: string): AuthErrorCode => {
   const text = (message ?? '').toLowerCase();
 
-  if (text.includes('password not configured')) return 'password_not_set';
-  if (text.includes('inactive') || text.includes('deactivated')) return 'account_inactive';
   if (text.includes('jwt_secret') || text.includes('configuration error')) return 'config';
 
-  if (status === 400) return 'missing_credentials';
-  if (status === 401 || status === 403) return 'invalid_credentials';
+  if (status === 404) return 'not_registered';
+  if (status === 403) return 'account_inactive';
+  if (status === 429) return 'rate_limited';
+  if (status === 400 || status === 401 || status === 409 || status === 410) return 'invalid_credentials';
   if (status && status >= 500) return 'server';
 
   return 'unknown';
 };
 
-/** Engineer-facing copy. The server's own wording is often too technical. */
+/**
+ * Engineer-facing copy. The OTP endpoints already write their messages for
+ * a person ("Wrong code. 3 tries left."), so those are shown as-is; only the
+ * failures with no useful server wording get our own.
+ */
 const friendlyMessage = (code: AuthErrorCode, fallback?: string): string => {
   switch (code) {
-    case 'missing_credentials':
-      return 'Enter your phone number or email, and your password.';
-    case 'invalid_credentials':
-      return 'Those details did not match. Check your phone number and password, then try again.';
-    case 'account_inactive':
-      return 'This account is not active. Contact the office to have it reactivated.';
-    case 'password_not_set':
-      return 'No password has been set for this account yet. Contact the office to get one.';
     case 'network':
       return 'Could not reach the server. Check your connection and try again.';
     case 'config':
       return 'The server is misconfigured. Contact the office — this is not something you can fix.';
     case 'server':
-      return 'The server had a problem. Try again in a moment.';
+      return fallback ?? 'The server had a problem. Try again in a moment.';
     default:
       return fallback ?? 'Something went wrong. Try again.';
   }
 };
 
+/** Turns any failed auth call into an AuthError the screens can show. */
+const toAuthError = (error: unknown): AuthError => {
+  if (error instanceof AuthError) return error;
+  if (isNetworkError(error)) return new AuthError('network', friendlyMessage('network'), true);
+  const status = axios.isAxiosError(error) ? error.response?.status : undefined;
+  const message = serverMessage(error);
+  const code = classify(status, message);
+  return new AuthError(code, friendlyMessage(code, message), code === 'server' || code === 'rate_limited');
+};
+
 export const engineerAuthApi = {
   /**
-   * POST /api/engineer-auth/login
-   *
-   * The backend reads `loginId` and `password` from the body and matches
-   * `loginId` against either email (lowercased) or phone. It only returns
-   * engineers whose status is 'active'.
+   * POST /api/engineer-auth/otp/send — asks the server to WhatsApp a
+   * 6-digit code to this number. Public; the server checks the number fits
+   * the purpose (an account exists for 'login', none does for 'register').
    */
+  async sendOtp(phone: string, purpose: OtpPurpose): Promise<SendOtpResponse> {
+    if (!env.apiUrl) {
+      throw new AuthError('config', 'No server address is configured for this app.');
+    }
+    try {
+      const { data } = await api.post<SendOtpResponse>('/engineer-auth/otp/send', { phone: phone.trim(), purpose });
+      return data;
+    } catch (error) {
+      throw toAuthError(error);
+    }
+  },
+
+  /** POST /api/engineer-auth/login/otp — exchanges the WhatsApp code for a session. */
   async login(credentials: LoginRequest): Promise<LoginResponse> {
     if (!env.apiUrl) {
       throw new AuthError('config', 'No server address is configured for this app.');
     }
 
     try {
-      const { data } = await api.post<LoginResponse>('/engineer-auth/login', {
-        loginId: credentials.loginId.trim(),
-        password: credentials.password,
+      const { data } = await api.post<LoginResponse>('/engineer-auth/login/otp', {
+        phone: credentials.phone.trim(),
+        otp: credentials.otp.trim(),
       });
 
       if (!data?.success || !data.token || !data.engineer) {
@@ -91,17 +109,7 @@ export const engineerAuthApi = {
 
       return data;
     } catch (error) {
-      if (error instanceof AuthError) throw error;
-
-      if (isNetworkError(error)) {
-        throw new AuthError('network', friendlyMessage('network'), true);
-      }
-
-      const status = axios.isAxiosError(error) ? error.response?.status : undefined;
-      const message = serverMessage(error);
-      const code = classify(status, message);
-
-      throw new AuthError(code, friendlyMessage(code, message), code === 'server');
+      throw toAuthError(error);
     }
   },
 
@@ -144,31 +152,17 @@ export const engineerAuthApi = {
     }
   },
 
-  /** PUT /api/engineer-auth/password — current password required, see the controller. */
-  async changePassword(payload: ChangePasswordRequest): Promise<void> {
-    try {
-      await api.put('/engineer-auth/password', payload);
-    } catch (error) {
-      if (isNetworkError(error)) {
-        throw new AuthError('network', friendlyMessage('network'), true);
-      }
-      throw new AuthError('server', serverMessage(error) ?? 'Could not change your password. Try again.', true);
-    }
-  },
-
   /**
    * POST /api/engineer-auth/delete-account — asks the office to delete this
    * account. The server signs the engineer out everywhere as soon as it's
-   * accepted, so the caller should log out locally right after.
+   * accepted, so the caller should log out locally right after. `otp` is a
+   * code sent with purpose 'delete_account' to the engineer's own number.
    */
-  async requestAccountDeletion(payload: { password: string; reason?: string }): Promise<void> {
+  async requestAccountDeletion(payload: { otp: string; reason?: string }): Promise<void> {
     try {
       await api.post('/engineer-auth/delete-account', payload);
     } catch (error) {
-      if (isNetworkError(error)) {
-        throw new AuthError('network', friendlyMessage('network'), true);
-      }
-      throw new AuthError('server', serverMessage(error) ?? 'Could not send your request. Try again.', true);
+      throw toAuthError(error);
     }
   },
 

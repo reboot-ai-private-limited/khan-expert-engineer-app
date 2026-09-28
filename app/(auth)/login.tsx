@@ -17,75 +17,98 @@ import { Button } from '@/components/common/Button';
 import { TextField } from '@/components/common/TextField';
 import { Notice } from '@/components/feedback/Notice';
 import { useAuth } from '@/context/AuthContext';
+import { useOtpSender } from '@/hooks/useOtpSender';
 import { env } from '@/config/env';
 import { AuthError } from '@/types/auth';
 import { colors, spacing, typography } from '@/theme';
 
 /** Show the support number once the engineer has failed this many times. */
 const FAILURES_BEFORE_SUPPORT = 3;
+const CODE_LENGTH = 6;
+
+/** Only a remembered phone number is worth prefilling — older builds could store an email. */
+const asPhone = (value: string | null) => (value && /^\+?[\d\s-]{10,15}$/.test(value.trim()) ? value.trim() : '');
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const { login, lastLoginId, sessionEndedReason, clearSessionEndedReason } = useAuth();
+  const otp = useOtpSender('login');
 
-  const [loginId, setLoginId] = useState('');
-  const [password, setPassword] = useState('');
+  const [phone, setPhone] = useState('');
+  const [code, setCode] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<AuthError | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<{ loginId?: string; password?: string }>({});
+  const [fieldErrors, setFieldErrors] = useState<{ phone?: string; code?: string }>({});
   const [failures, setFailures] = useState(0);
 
-  const passwordRef = useRef<TextInput>(null);
+  const codeRef = useRef<TextInput>(null);
+  const codeStep = otp.sentTo !== null;
 
-  /** Prefill the remembered identifier so the engineer types only a password. */
+  /** Prefill the remembered number so the engineer only has to tap "Send code". */
   useEffect(() => {
-    if (lastLoginId && !loginId) {
-      setLoginId(lastLoginId);
+    if (lastLoginId && !phone) {
+      setPhone(asPhone(lastLoginId));
     }
     // Intentionally keyed only on lastLoginId — this should not fight the
     // engineer if they clear the field themselves.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastLoginId]);
 
-  const validate = (): boolean => {
-    const next: { loginId?: string; password?: string } = {};
-    if (!loginId.trim()) next.loginId = 'Enter your phone number or email.';
-    if (!password) next.password = 'Enter your password.';
-    setFieldErrors(next);
-    return Object.keys(next).length === 0;
+  const fail = (err: unknown) => {
+    setError(err instanceof AuthError ? err : new AuthError('unknown', 'Something went wrong. Try again.'));
+    setFailures((n) => n + 1);
   };
 
-  const handleSubmit = async () => {
-    if (submitting) return;
-
+  const handleSendCode = async () => {
+    if (otp.sending) return;
     Keyboard.dismiss();
     setError(null);
     clearSessionEndedReason();
 
-    if (!validate()) return;
+    if (phone.replace(/\D/g, '').length < 10) {
+      setFieldErrors({ phone: 'Enter your 10-digit mobile number.' });
+      return;
+    }
+    setFieldErrors({});
+
+    try {
+      await otp.send(phone);
+      setCode('');
+      setTimeout(() => codeRef.current?.focus(), 150);
+    } catch (err) {
+      fail(err);
+    }
+  };
+
+  const handleVerify = async () => {
+    if (submitting || !otp.sentTo) return;
+    Keyboard.dismiss();
+    setError(null);
+
+    if (code.length !== CODE_LENGTH) {
+      setFieldErrors({ code: `Enter the ${CODE_LENGTH}-digit code from WhatsApp.` });
+      return;
+    }
+    setFieldErrors({});
 
     setSubmitting(true);
     try {
-      await login(loginId, password);
+      await login(otp.sentTo, code);
       // Navigation is handled by the auth layout redirect once status flips.
-      setPassword('');
       setFailures(0);
     } catch (err) {
-      const authError =
-        err instanceof AuthError
-          ? err
-          : new AuthError('unknown', 'Something went wrong. Try again.');
-
-      setError(authError);
-      setFailures((n) => n + 1);
-
-      // Only the password is wrong often enough to be worth clearing.
-      if (authError.code === 'invalid_credentials') {
-        setPassword('');
-      }
+      fail(err);
+      setCode('');
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const changeNumber = () => {
+    otp.reset();
+    setCode('');
+    setError(null);
+    setFieldErrors({});
   };
 
   const callSupport = () => {
@@ -93,7 +116,7 @@ export default function LoginScreen() {
     void Linking.openURL(`tel:${env.supportPhone}`);
   };
 
-  const showSupport = failures >= FAILURES_BEFORE_SUPPORT || error?.code === 'password_not_set';
+  const showSupport = failures >= FAILURES_BEFORE_SUPPORT || error?.code === 'account_inactive';
 
   return (
     <KeyboardAvoidingView
@@ -116,7 +139,9 @@ export default function LoginScreen() {
             <View style={styles.titleBlock}>
               <Text style={[typography.display, styles.title]}>Field Engineer</Text>
               <Text style={[typography.body, styles.subtitle]}>
-                Sign in to see the jobs assigned to you.
+                {codeStep
+                  ? 'Enter the code we sent to your WhatsApp.'
+                  : 'Sign in with your mobile number — we will send a code to your WhatsApp.'}
               </Text>
             </View>
 
@@ -139,66 +164,88 @@ export default function LoginScreen() {
                 />
               ) : null}
 
-              {/* Form */}
+              {codeStep && otp.message && !error ? <Notice tone="info" message={otp.message} /> : null}
+
               <View style={styles.form}>
-                <TextField
-                  label="Phone number or email"
-                  value={loginId}
-                  onChangeText={(text) => {
-                    setLoginId(text);
-                    if (fieldErrors.loginId) setFieldErrors((p) => ({ ...p, loginId: undefined }));
-                  }}
-                  error={fieldErrors.loginId}
-                  placeholder="9876543210"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  autoComplete="username"
-                  textContentType="username"
-                  returnKeyType="next"
-                  editable={!submitting}
-                  onSubmitEditing={() => passwordRef.current?.focus()}
-                  submitBehavior="submit"
-                />
+                {!codeStep ? (
+                  <>
+                    <TextField
+                      label="Mobile number"
+                      value={phone}
+                      onChangeText={(text) => {
+                        setPhone(text);
+                        if (fieldErrors.phone) setFieldErrors({});
+                      }}
+                      error={fieldErrors.phone}
+                      placeholder="9876543210"
+                      keyboardType="phone-pad"
+                      autoComplete="tel"
+                      textContentType="telephoneNumber"
+                      maxLength={14}
+                      returnKeyType="go"
+                      editable={!otp.sending}
+                      onSubmitEditing={handleSendCode}
+                    />
 
-                <TextField
-                  ref={passwordRef}
-                  label="Password"
-                  value={password}
-                  onChangeText={(text) => {
-                    setPassword(text);
-                    if (fieldErrors.password) setFieldErrors((p) => ({ ...p, password: undefined }));
-                  }}
-                  error={fieldErrors.password}
-                  placeholder="Your password"
-                  secure
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  autoComplete="current-password"
-                  textContentType="password"
-                  returnKeyType="go"
-                  editable={!submitting}
-                  onSubmitEditing={handleSubmit}
-                />
+                    <Button
+                      label="Send code on WhatsApp"
+                      loadingLabel="Sending…"
+                      onPress={handleSendCode}
+                      loading={otp.sending}
+                      style={styles.submit}
+                      testID="login-send-code"
+                    />
+                  </>
+                ) : (
+                  <>
+                    <TextField
+                      ref={codeRef}
+                      label="6-digit code"
+                      value={code}
+                      onChangeText={(text) => {
+                        setCode(text.replace(/\D/g, '').slice(0, CODE_LENGTH));
+                        if (fieldErrors.code) setFieldErrors({});
+                      }}
+                      error={fieldErrors.code}
+                      placeholder="••••••"
+                      keyboardType="number-pad"
+                      autoComplete="one-time-code"
+                      textContentType="oneTimeCode"
+                      maxLength={CODE_LENGTH}
+                      returnKeyType="go"
+                      editable={!submitting}
+                      onSubmitEditing={handleVerify}
+                    />
 
-                <Button
-                  label="Sign in"
-                  loadingLabel="Signing in…"
-                  onPress={handleSubmit}
-                  loading={submitting}
-                  style={styles.submit}
-                  testID="login-submit"
-                />
+                    <Button
+                      label="Sign in"
+                      loadingLabel="Signing in…"
+                      onPress={handleVerify}
+                      loading={submitting}
+                      style={styles.submit}
+                      testID="login-submit"
+                    />
+
+                    <View style={styles.codeActions}>
+                      <Text style={[typography.small, styles.link]} onPress={changeNumber}>
+                        Change number
+                      </Text>
+                      <Text
+                        style={[typography.small, otp.canResend ? styles.link : styles.footerText]}
+                        onPress={otp.canResend ? handleSendCode : undefined}
+                      >
+                        {otp.canResend ? 'Resend code' : `Resend in ${otp.secondsLeft}s`}
+                      </Text>
+                    </View>
+                  </>
+                )}
               </View>
             </View>
           </View>
 
-          {/* Escape hatch.
-              There is no self-service password reset on the backend — an
-              administrator sets engineer passwords by hand. Until that
-              endpoint exists, the honest answer is "call the office". */}
           <View style={styles.footer}>
             <Text style={[typography.small, styles.footerText]}>
-              Forgot your password? The office sets it for you — give them a call.
+              Changed your number, or no WhatsApp on it? The office can update it for you.
             </Text>
 
             {showSupport && env.supportPhone ? (
@@ -267,6 +314,14 @@ const styles = StyleSheet.create({
   },
   submit: {
     marginTop: spacing.sm,
+  },
+  codeActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  link: {
+    color: colors.brand,
+    fontWeight: '600',
   },
   footer: {
     gap: spacing.lg,
