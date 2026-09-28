@@ -128,14 +128,7 @@ export default function ProfileScreen() {
         <MenuRow icon="wallet" tint="amber" label="Wallet" onPress={() => router.push('/(tabs)/profile/wallet')} />
         <MenuRow icon="construct" tint="green" label="My skills" onPress={() => router.push('/(tabs)/profile/skills')} />
         <MenuRow icon="shield-checkmark" tint="red" label="KYC documents" onPress={() => router.push('/(tabs)/profile/kyc')} />
-        <MenuRow icon="card" tint="slate" label="ID cards" onPress={() => router.push('/(tabs)/profile/id-cards')} />
-        <MenuRow
-          icon="lock-closed"
-          tint="purple"
-          label="Change password"
-          onPress={() => router.push('/(tabs)/profile/password')}
-          last
-        />
+        <MenuRow icon="card" tint="slate" label="ID cards" onPress={() => router.push('/(tabs)/profile/id-cards')} last />
       </View>
 
       <Pressable

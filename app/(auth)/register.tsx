@@ -15,6 +15,7 @@ import { TextField } from '@/components/common/TextField';
 import { Notice } from '@/components/feedback/Notice';
 import { CircuitGradient } from '@/components/common/CircuitGradient';
 import { useAuth } from '@/context/AuthContext';
+import { useOtpSender } from '@/hooks/useOtpSender';
 import { AuthError, ENGINEER_TYPE_LABELS, SELECTABLE_ENGINEER_TYPES, type EngineerType } from '@/types/auth';
 import { colors, spacing, typography } from '@/theme';
 
@@ -25,8 +26,8 @@ export default function RegisterScreen() {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const otp = useOtpSender('register');
+  const [code, setCode] = useState('');
   const [addressLine1, setAddressLine1] = useState('');
   const [city, setCity] = useState('');
   const [district, setDistrict] = useState('');
@@ -50,9 +51,9 @@ export default function RegisterScreen() {
     const next: Record<string, string> = {};
     if (!name.trim()) next.name = 'Enter your full name.';
     if (!phone.trim()) next.phone = 'Enter your phone number.';
-    if (!password) next.password = 'Choose a password.';
-    else if (password.length < 6) next.password = 'At least 6 characters.';
-    if (confirmPassword !== password) next.confirmPassword = 'Passwords do not match.';
+    if (!otp.sentTo) next.code = 'Send a code to your WhatsApp to verify this number.';
+    else if (otp.sentTo !== phone.trim()) next.code = 'You changed the number — send a new code.';
+    else if (code.length !== 6) next.code = 'Enter the 6-digit code from WhatsApp.';
     if (engineerType === 'service_center' && !serviceCenterName.trim()) {
       next.serviceCenterName = 'Enter your service center name.';
     }
@@ -62,6 +63,21 @@ export default function RegisterScreen() {
     if (!consent) next.consent = 'Required to submit your application.';
     setFieldErrors(next);
     return Object.keys(next).length === 0;
+  };
+
+  const handleSendCode = async () => {
+    setError(null);
+    if (phone.replace(/\D/g, '').length < 10) {
+      setFieldErrors((p) => ({ ...p, phone: 'Enter your 10-digit mobile number.' }));
+      return;
+    }
+    setFieldErrors((p) => ({ ...p, phone: '', code: '' }));
+    try {
+      await otp.send(phone);
+      setCode('');
+    } catch (err) {
+      setError(err instanceof AuthError ? err.message : 'Could not send the code. Try again.');
+    }
   };
 
   const handleSubmit = async () => {
@@ -75,7 +91,7 @@ export default function RegisterScreen() {
         name: name.trim(),
         phone: phone.trim(),
         email: email.trim() || undefined,
-        password,
+        otp: code,
         route: route.trim() || undefined,
         engineerType,
         yearsOfExperience: yearsOfExperience ? Number(yearsOfExperience) : undefined,
@@ -242,16 +258,33 @@ export default function RegisterScreen() {
           />
         </Section>
 
-        <Section title="Set a password">
-          <TextField label="Password" value={password} onChangeText={setPassword} error={fieldErrors.password} secure autoCapitalize="none" />
-          <TextField
-            label="Confirm password"
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-            error={fieldErrors.confirmPassword}
-            secure
-            autoCapitalize="none"
+        <Section title="Verify your WhatsApp number">
+          <Text style={[typography.caption, styles.hint]}>
+            You sign in with a code sent to this number on WhatsApp — there is no password.
+          </Text>
+          {otp.message && otp.sentTo === phone.trim() ? <Notice tone="info" message={otp.message} /> : null}
+          <Button
+            label={otp.sentTo ? (otp.canResend ? 'Resend code' : `Resend in ${otp.secondsLeft}s`) : 'Send code on WhatsApp'}
+            loadingLabel="Sending…"
+            variant="secondary"
+            onPress={handleSendCode}
+            loading={otp.sending}
+            disabled={!!otp.sentTo && !otp.canResend}
           />
+          {otp.sentTo ? (
+            <TextField
+              label="6-digit code"
+              value={code}
+              onChangeText={(t) => setCode(t.replace(/\D/g, '').slice(0, 6))}
+              error={fieldErrors.code}
+              keyboardType="number-pad"
+              autoComplete="one-time-code"
+              textContentType="oneTimeCode"
+              maxLength={6}
+            />
+          ) : fieldErrors.code ? (
+            <Text style={[typography.caption, styles.consentError]}>{fieldErrors.code}</Text>
+          ) : null}
         </Section>
 
         <Pressable
