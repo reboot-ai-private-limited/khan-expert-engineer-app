@@ -356,12 +356,12 @@ export const ProductVerificationCard: React.FC<ProductVerificationCardProps> = (
   return (
     <CollapsibleSection title="Check SR" summary={summary}>
       <Text style={[typography.caption, styles.subtitle]}>
-        Photograph the unit and its nameplate, and correct any details below before starting work.
+        Photograph the unit and its serial number, and correct any details below before starting work.
       </Text>
 
       <View style={styles.photoRow}>
         <PhotoSlot label="Product photo" required existingUrl={productPhoto?.secure_url} busy={photoBusy === 'product'} onCapture={() => capturePhoto('product')} />
-        <PhotoSlot label="Nameplate" required existingUrl={nameplatePhoto?.secure_url} busy={photoBusy === 'nameplate'} onCapture={() => capturePhoto('nameplate')} />
+        <PhotoSlot label="Serial number" required existingUrl={nameplatePhoto?.secure_url} busy={photoBusy === 'nameplate'} onCapture={() => capturePhoto('nameplate')} />
       </View>
 
       <ProductVideoSlot call={call} onUpdated={onUpdated} />

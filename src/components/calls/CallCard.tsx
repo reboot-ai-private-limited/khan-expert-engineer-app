@@ -89,7 +89,7 @@ export const CallCard: React.FC<CallCardProps> = ({ call }) => {
       </View>
 
       <View style={styles.bottomRow}>
-        <StatusPill jobStatus={call.jobStatus} withIcon size="md" />
+        <StatusPill jobStatus={call.jobStatus} subStatus={call.subStatus} withIcon size="md" />
 
         {canCallCustomer ? (
           <Pressable

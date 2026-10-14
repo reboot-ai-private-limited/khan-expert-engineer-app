@@ -11,6 +11,8 @@ interface StatusPillProps {
   withIcon?: boolean;
   /** Larger padding, for a pill sitting on its own row. */
   size?: 'sm' | 'md';
+  /** The engineer/office sub-status ("Awaiting Parts"…), shown as a second chip like the website. */
+  subStatus?: string;
 }
 
 const BUCKET_ICON: Record<StatusBucket, keyof typeof Ionicons.glyphMap | null> = {
@@ -20,12 +22,16 @@ const BUCKET_ICON: Record<StatusBucket, keyof typeof Ionicons.glyphMap | null> =
   other: null,
 };
 
-export const StatusPill: React.FC<StatusPillProps> = ({ jobStatus, withIcon = false, size = 'sm' }) => {
+export const StatusPill: React.FC<StatusPillProps> = ({ jobStatus, withIcon = false, size = 'sm', subStatus }) => {
   const bucket = classifyStatus(jobStatus);
   const palette = statusPillPalette[bucket];
   const icon = BUCKET_ICON[bucket];
+  // Only worth a second chip when it adds something the main pill does not say.
+  const sub = subStatus?.trim();
+  const showSub = Boolean(sub) && sub!.toLowerCase() !== (jobStatus ?? '').trim().toLowerCase();
 
   return (
+    <View style={styles.wrap}>
     <View style={[styles.pill, size === 'md' && styles.pillMd, { backgroundColor: palette.bg }]}>
       {withIcon ? (
         icon ? (
@@ -41,10 +47,22 @@ export const StatusPill: React.FC<StatusPillProps> = ({ jobStatus, withIcon = fa
         {jobStatus || 'Unknown'}
       </Text>
     </View>
+    {showSub ? (
+      <View style={[styles.pill, size === 'md' && styles.pillMd, { backgroundColor: statusPillPalette.other.bg }]}>
+        <Text
+          style={[typography.caption, styles.text, size === 'md' && styles.textMd, { color: statusPillPalette.other.text }]}
+          numberOfLines={1}
+        >
+          {sub}
+        </Text>
+      </View>
+    ) : null}
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
+  wrap: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6, alignSelf: 'flex-start' },
   pill: {
     alignSelf: 'flex-start',
     flexDirection: 'row',
