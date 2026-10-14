@@ -90,7 +90,7 @@ export default function CallDetailScreen() {
             {call.customerName}
           </Text>
         </View>
-        <StatusPill jobStatus={call.jobStatus} subStatus={call.subStatus} />
+        <StatusPill jobStatus={call.jobStatus} subStatus={call.subStatus} align="end" />
       </View>
 
       <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + spacing.xxxl }]}>

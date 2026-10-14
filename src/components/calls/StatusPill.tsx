@@ -13,6 +13,8 @@ interface StatusPillProps {
   size?: 'sm' | 'md';
   /** The engineer/office sub-status ("Awaiting Parts"…), shown as a second chip like the website. */
   subStatus?: string;
+  /** Side the sub-status chip lines up on under the main pill. */
+  align?: 'start' | 'end';
 }
 
 const BUCKET_ICON: Record<StatusBucket, keyof typeof Ionicons.glyphMap | null> = {
@@ -22,7 +24,7 @@ const BUCKET_ICON: Record<StatusBucket, keyof typeof Ionicons.glyphMap | null> =
   other: null,
 };
 
-export const StatusPill: React.FC<StatusPillProps> = ({ jobStatus, withIcon = false, size = 'sm', subStatus }) => {
+export const StatusPill: React.FC<StatusPillProps> = ({ jobStatus, withIcon = false, size = 'sm', subStatus, align = 'start' }) => {
   const bucket = classifyStatus(jobStatus);
   const palette = statusPillPalette[bucket];
   const icon = BUCKET_ICON[bucket];
@@ -31,7 +33,7 @@ export const StatusPill: React.FC<StatusPillProps> = ({ jobStatus, withIcon = fa
   const showSub = Boolean(sub) && sub!.toLowerCase() !== (jobStatus ?? '').trim().toLowerCase();
 
   return (
-    <View style={styles.wrap}>
+    <View style={[styles.wrap, align === 'end' && styles.wrapEnd]}>
     <View style={[styles.pill, size === 'md' && styles.pillMd, { backgroundColor: palette.bg }]}>
       {withIcon ? (
         icon ? (
@@ -62,7 +64,8 @@ export const StatusPill: React.FC<StatusPillProps> = ({ jobStatus, withIcon = fa
 };
 
 const styles = StyleSheet.create({
-  wrap: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6, alignSelf: 'flex-start' },
+  wrap: { flexDirection: 'column', alignItems: 'flex-start', gap: 4, alignSelf: 'flex-start' },
+  wrapEnd: { alignItems: 'flex-end', alignSelf: 'flex-end' },
   pill: {
     alignSelf: 'flex-start',
     flexDirection: 'row',
